@@ -1,7 +1,7 @@
 import sys
-from cli.cli_parser import parse_command_line_statement
-from config.configuration import ConfigSingleton, get_configuration_dict
-from message_processor import MessageProcessor
+from main.cli.cli_parser import parse_command_line_statement
+from main.config.configuration import ConfigSingleton, get_configuration_dict
+from main.message_processor import MessageProcessor
 
 
 def main():
@@ -11,7 +11,7 @@ def main():
     parsed_cli_parameters_dict = parse_command_line_statement(sys.argv)
     # Hand over the message processor to action
     processor = MessageProcessor()
-    processor.__action_cli_request(parsed_cli_parameters_dict)
+    processor.action_cli_request(parsed_cli_parameters_dict)
 
 
 if __name__ == '__main__':

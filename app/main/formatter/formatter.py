@@ -1,23 +1,34 @@
-from config.constants import OUTPUT, JSON, CSV, TABLE, DataType, NAME
+from main.config.constants import OUTPUT, JSON, CSV, TABLE, DataType, NAME
 from tabulate import tabulate
 import json
+from main.config.configuration import ConfigSingleton, LOGGING_CONFIG_FILE
+import logging
+from logging.config import fileConfig
+
+fileConfig(LOGGING_CONFIG_FILE)
+logger = logging.getLogger('main')
+message_logger = logging.getLogger('message')
 
 
 class Formatter:
     def format(self, data_type, data, options):
+        logger.debug("Attempting to format data for type: {} and output: {}".format(data_type, options.get(OUTPUT)))
         if options.get(OUTPUT) == JSON:
-            print(json.dump(data))
+            message_logger.info(json.dump(data))
         elif options.get(OUTPUT) == TABLE:
             self.__get_headings(data_type)
-            print(
+            message_logger.info(
             tabulate([self.__flatten_data_record(data_type, record) for record in data],
                      self.__get_headings(data_type),
                      tablefmt="github")
             )
         elif options.get(OUTPUT) == CSV:
-            print(",".join(self.__get_headings(data_type)))
-            for record in data:
-                print(",".join(self.__flatten_data_record(data_type, record)))
+            message_logger.info(", ".join(self.__get_headings(data_type)))
+            if data:
+                for record in data:
+                    message_logger.info(",".join(self.__flatten_data_record(data_type, record)))
+            else:
+                logger.info("No data to output")
         else:
             pass
 

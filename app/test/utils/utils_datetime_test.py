@@ -1,8 +1,8 @@
 import unittest
 import datetime
 
-from config.constants import YESTERDAY, TODAY, DAYS, HOURS
-from utils.utils import validate_duration_string, calculate_start_and_end_times_from_duration, parse_datetime_str
+from main.config.constants import YESTERDAY, TODAY, DAYS, HOURS
+from main.utils.utils import validate_duration_string, calculate_start_and_end_times_from_duration, parse_datetime_str
 
 
 class UtilsDateTimeTest(unittest.TestCase):

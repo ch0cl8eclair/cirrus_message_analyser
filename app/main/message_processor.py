@@ -1,31 +1,38 @@
-import DURATION as DURATION
-
-from config.constants import RULES, FUNCTION, OPTIONS, RULE, TIME, SEARCH_PARAMETERS, START_DATETIME, END_DATETIME, \
-    DataType
-from config.configuration import ConfigSingleton
+from main.config.constants import RULES, FUNCTION, OPTIONS, RULE, TIME, SEARCH_PARAMETERS, START_DATETIME, END_DATETIME, \
+    DataType, NAME
 from cache_to_disk import delete_old_disk_caches
 
-from formatter.formatter import Formatter
-from http.CirrusProxy import CirrusProxy
-from utils.utils import error_and_exit, calculate_start_and_end_times_from_duration, get_datetime_now_as_zulu, \
+from main.formatter.formatter import Formatter
+from main.http.CirrusProxy import CirrusProxy, FailedToCommunicateWithCirrus
+from main.utils.utils import error_and_exit, calculate_start_and_end_times_from_duration, get_datetime_now_as_zulu, \
     validate_start_and_end_times
+
+from main.config.configuration import ConfigSingleton, LOGGING_CONFIG_FILE
+import logging
+from logging.config import fileConfig
+
+fileConfig(LOGGING_CONFIG_FILE)
+logger = logging.getLogger('main')
 
 
 class MessageProcessor:
     """Main class that takes cli arguments and actions them by communicating with Cirrus"""
+    # If user provides uid then map to message-id
 
     def __init__(self):
         self.configuration = ConfigSingleton()
         self.cirrus_proxy = CirrusProxy()
         self.formatter = Formatter()
 
-    def __action_cli_request(self, cli_dict):
+    def action_cli_request(self, cli_dict):
         """Take the cli arguments, validate them further and action them"""
         # Determine behaviour based on precedence of flags, analyse could be for a single or multiple msgs
         function_to_call = cli_dict.get(FUNCTION)
         options = cli_dict.get(OPTIONS)
         search_parameters = {}
 
+        logger.info("Received CLI request for function: {}".format(function_to_call))
+        logger.debug("CLI command is: {}".format(str(cli_dict)))
         if function_to_call == "list_rules":
             self.list_rules(options)
         elif function_to_call == "clear_cache":
@@ -39,6 +46,7 @@ class MessageProcessor:
             # Ensure configured rule is valid
             if not configured_rule:
                 error_and_exit("The specified rule: [] is not found in the rules.json config file, please specify a valid rule name" % cli_dict.get(RULE))
+            logger.info("Attempting search with provided rule: {}".format(cli_dict.get(RULE)))
             search_parameters.update(configured_rule.get(SEARCH_PARAMETERS))
             # Choose time over start_datetime and end_datetime, where time is a single duration like day
             # that can be broken down into a start and end time pointer
@@ -48,6 +56,7 @@ class MessageProcessor:
                     search_parameters.update(time_params)
                 except ValueError as err:
                     error_and_exit(str(err))
+                logger.info("Adding time window to search of start-date: {}, end-date: {}".format(time_params.get("start-date"), time_params.get("end-date")))
             else:
                 # handle start and end times
                 # if we just have start then set now as end time
@@ -60,6 +69,7 @@ class MessageProcessor:
                     end_string = cli_dict.get(END_DATETIME)
                 time_params = validate_start_and_end_times(start_string, end_string)
                 search_parameters.update(time_params)
+                logger.info("Adding time window to search of start-date: {}, end-date: {}".format(start_string, end_string))
             self.list_messages(search_parameters, options)
         else:
             pass
@@ -68,13 +78,16 @@ class MessageProcessor:
         """Returns the configured rule matching the supplied name"""
         rules_list = self.configuration.get(RULES)
         for rule in rules_list:
-            if rule.name == rule_name:
+            if rule.get(NAME) == rule_name:
                 return rule
         return None
 
     def list_messages(self, search_criteria, format_options):
-        result = self.cirrus_proxy.search_for_messages(search_criteria)
-        self.formatter.format(result, DataType.cirrus_messages, format_options)
+        try:
+            result = self.cirrus_proxy.search_for_messages(search_criteria)
+            self.formatter.format(DataType.cirrus_messages, result, format_options)
+        except FailedToCommunicateWithCirrus as err:
+            error_and_exit(str(err))
 
     def list_message_payloads(self, options):
         pass
@@ -90,7 +103,7 @@ class MessageProcessor:
 
     def list_rules(self, options):
         rules_list = self.configuration.get(RULES)
-        self.formatter.format_config_data(rules_list, options)
+        self.formatter.format(DataType.config_rule, rules_list, options)
 
     def analyse(self):
         pass

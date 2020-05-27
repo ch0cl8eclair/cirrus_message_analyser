@@ -5,7 +5,7 @@
       "source": "uk0000000037",
       "destination": "uk0000000036",
       "type": "movement",
-      "status": "FAILED"
+      "message-status": "FAILED"
     }
   }
 ]

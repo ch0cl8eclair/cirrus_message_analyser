@@ -1,7 +1,7 @@
 import os
 
-from config.constants import CREDENTIALS, RULES
-from utils.utils import parse_json_from_file
+from main.config.constants import CREDENTIALS, RULES
+from main.utils.utils import parse_json_from_file
 
 CONFIGURATION_FILE = "resources/configuration.json"
 CREDENTIALS_FILE   = "resources/credentials.json"

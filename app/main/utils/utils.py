@@ -4,7 +4,7 @@ import os
 import re
 import sys
 
-from config.constants import *
+from main.config.constants import *
 
 DURATION_PATTERN = re.compile(r'(\d+)([dh])')
 DATETIME_REGEX = re.compile(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}')
@@ -34,7 +34,7 @@ def convert_package_str_to_path_notation(package_dot_name):
 
 
 def error_and_exit(error_msg):
-    print("You must specify a rule to inorder to list msgs from Cirrus", file=sys.stderr)
+    print(error_msg, file=sys.stderr)
     sys.exit(1)
 
 
@@ -77,12 +77,13 @@ def calculate_start_and_end_times_from_duration(duration_string):
             earlier_datetime = latter_datetime + datetime.timedelta(days=day_value)
         else:
             raise ValueError("Provided duration value: [{}] is not handled".format(duration_string))
-        return {"start_datetime": format_datetime_to_zulu(earlier_datetime), "end_datetime": format_datetime_to_zulu(latter_datetime)}
+        return {"start-date": format_datetime_to_zulu(earlier_datetime), "end-date": format_datetime_to_zulu(latter_datetime)}
     raise ValueError("Provided duration value: [{}] is not handled".format(duration_string))
 
 
 def validate_start_and_end_times(start_datetime_str, end_datetime_str):
-    return {"start_datetime": format_datetime_to_zulu(parse_datetime_str(start_datetime_str)), "end_datetime": format_datetime_to_zulu(parse_datetime_str(end_datetime_str))}
+    # Note the key names here are the Cirrus api ones
+    return {"start-date": format_datetime_to_zulu(parse_datetime_str(start_datetime_str)), "end-date": format_datetime_to_zulu(parse_datetime_str(end_datetime_str))}
 
 
 def parse_datetime_str(datetime_str):

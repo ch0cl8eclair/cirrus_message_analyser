@@ -1,10 +1,11 @@
 import urllib3
 import requests
 import base64
-import binascii
+import json
 from cache_to_disk import cache_to_disk
 
-from config.configuration import ConfigSingleton, CREDENTIALS, USERNAME, PASSWORD, LOGGING_CONFIG_FILE, URLS, \
+from main.config.configuration import ConfigSingleton, LOGGING_CONFIG_FILE
+from main.config.constants import CREDENTIALS, USERNAME, PASSWORD, URLS, \
     NAME, URL, GET, TYPE, POST, DATA_DICT, MSG_UID
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -15,16 +16,27 @@ fileConfig(LOGGING_CONFIG_FILE)
 logger = logging.getLogger('requester')
 
 
+class FailedToCommunicateWithCirrus(Exception):
+    """Exception raised for failed communications with Cirrus"""
+
+    def __init__(self, url, response_code):
+        self.url = url
+        self.response_code = response_code
+
+    def __str__(self):
+        return "Failed to get success code from url: {}, obtained: {}".format(self.url, self.response_code)
+
+
 class CirrusProxy:
 
     def __init__(self):
         self.configuration = ConfigSingleton()
 
     def __get_headers(self):
+        # Removed             'Cache-Control': 'no-cache',
         headers = {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
-            'Cache-Control': 'no-cache',
             'Authorization': self.__generate_auth_string(),
             'Tenant': 'eu0000000001'
         }
@@ -35,15 +47,19 @@ class CirrusProxy:
         response = requests.get(url, headers=self.__get_headers())
         if response.status_code != requests.codes["ok"]:
             logger.error("Failed get webpage: {}, status code: {}".format(url, response.status_code))
-            return None
+            raise FailedToCommunicateWithCirrus(url, response.status_code)
         return response.json()
 
     def __issue_post_request(self, url, data_dict):
         logger.debug("Issuing post request: {}".format(url))
-        response = requests.post(url, data=data_dict, headers=self.__get_headers())
+        logger.debug("Request headers are: {}".format(str(self.__get_headers())))
+        logger.debug("Request data is: {}".format(str(data_dict)))
+        response = requests.post(url, data=json.dumps(data_dict), headers=self.__get_headers())
         if response.status_code != requests.codes["ok"]:
-            logger.error("Failed to login successfully: {}".format(url))
-            return None
+            logger.error("Failed to issue post request to: {}, received error code: {}".format(url, response.status_code))
+            if response.text:
+                logger.error("Error response from server is: {}".format(response.json()))
+            raise FailedToCommunicateWithCirrus(url, response.status_code)
         return response.json()
 
     def __get_url_and_issue(self, url_type, data_parameters_dict):
@@ -86,8 +102,13 @@ class CirrusProxy:
     def __generate_auth_string(self):
         config_credentials = self.configuration.get(CREDENTIALS)
         up_str = "{}:{}".format(config_credentials.get(USERNAME), config_credentials.get(PASSWORD))
-        encoded = base64.b64encode(binascii.a2b_uu(up_str))
-        return "Authorization: Basic {}".format(encoded)
+
+        message_bytes = up_str.encode('ascii')
+        base64_bytes = base64.b64encode(message_bytes)
+        base64_message = base64_bytes.decode('ascii')
+        logger.debug("Credentials encoded as: {}".format(base64_message))
+
+        return "Basic {}".format(base64_message)
 
     def __get_config_url(self, url_name):
         configured_urls = self.configuration.get(URLS)

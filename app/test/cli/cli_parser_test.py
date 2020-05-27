@@ -1,6 +1,6 @@
 import unittest
 
-from cli.cli_parser import parse_command_line_statement
+from main.cli.cli_parser import parse_command_line_statement
 
 
 class CommandLineParserTest(unittest.TestCase):

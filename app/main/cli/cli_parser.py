@@ -4,7 +4,7 @@ import sys
 ###
 # Constants
 ###
-from config.constants import FUNCTION, UID, TIME, CSV, JSON, TABLE, RULE, OPTIONS
+from main.config.constants import FUNCTION, UID, TIME, CSV, JSON, TABLE, RULE, OPTIONS
 
 LIST = 'list'
 ANALYSE = 'analyse'
@@ -29,14 +29,15 @@ def create_parent_parser():
     parent_args_group = parser.add_mutually_exclusive_group()
     parent_args_group.add_argument("-v", "--verbose", action="store_true", default=False)
     parent_args_group.add_argument("-q", "--quiet", action="store_true", default=False)
-    parser.add_argument("-o", "--output", choices=output_types_list, default="csv")
+    parser.add_argument("-o", "--output", choices=output_types_list, default="csv", help="Select the output data format")
     return parser
 
 
 def create_command_parser(parent_parser):
-    command_parser = argparse.ArgumentParser(description="list commands", parents=[parent_parser])
+    command_parser = argparse.ArgumentParser(description="Cirrus Message Analyser commands", parents=[parent_parser])
     command_parser.add_argument("command", choices=[LIST, ANALYSE, CLEAR_CACHE])
-    command_parser.add_argument("command_parameters", metavar='N', nargs='?', help="parameters for the chosen command")
+    help_str = "List command directives: {}".format(",".join(list_commands))
+    command_parser.add_argument("command_parameters", metavar='N', nargs='?', help=help_str)
     command_parser.add_argument("--uid", help="Specify the message unique id")
     command_parser.add_argument("--rule", help="Specify the processing rule to use")
     command_parser.add_argument("--time", help="Specify the time window to filter on eg today, yesterday, 1d, 3h")
