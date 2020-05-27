@@ -1,0 +1,31 @@
+{
+  "urls": [
+    {
+      "name": "SEARCH_MESSAGES",
+      "type": "POST",
+      "url": "https://cirrusconnect.eu.f4f.com/cirrus-connect/rest/tracking/message/search",
+      "data_dict": {"include-status-in-search": true, "start-date": "", "end-date": "", "source": "", "destination", "type": ""}
+    },
+    {
+      "name": "GET_MESSAGE_PAYLOADS",
+      "type": "GET",
+      "url": "https://cirrusconnect.eu.f4f.com/cirrus-connect/rest/tracking/payload/find-by-message-unique-id/{}",
+    },
+    {
+      "name": "GET_MESSAGE_EVENTS",
+      "type": "GET",
+      "url": "https://cirrusconnect.eu.f4f.com/cirrus-connect/rest/tracking/event/find-by-message-unique-id/{}",
+    },
+    {
+      "name": "GET_MESSAGE_METADATA",
+      "type": "GET",
+      "url": "https://cirrusconnect.eu.f4f.com/cirrus-connect/rest/tracking/metadata/find-by-message-unique-id/{}",
+    },
+    {
+      "name": "GET_MESSAGE_TRANSFORMS",
+      "type": "POST",
+      "url": "https://cirrusconnect.eu.f4f.com/cirrus-connect/rest/workbench/transform/search",
+      "data_dict": { "current-only": true, "source": "", "destination": "", "type": ""}
+    }
+  ]
+}
