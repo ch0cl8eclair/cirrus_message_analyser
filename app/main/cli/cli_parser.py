@@ -1,11 +1,18 @@
 import argparse
-import sys
+
+from main.config.constants import FUNCTION, UID, TIME, CSV, JSON, TABLE, RULE, OPTIONS
+
+from main.config.configuration import ConfigSingleton, LOGGING_CONFIG_FILE
+import logging
+from logging.config import fileConfig
+
+fileConfig(LOGGING_CONFIG_FILE)
+logger = logging.getLogger('main')
+message_logger = logging.getLogger('message')
 
 ###
 # Constants
 ###
-from main.config.constants import FUNCTION, UID, TIME, CSV, JSON, TABLE, RULE, OPTIONS
-
 LIST = 'list'
 ANALYSE = 'analyse'
 CLEAR_CACHE = 'clear-cache'
@@ -66,7 +73,7 @@ def parse_command_line_statement(arguments_list):
             result_map[FUNCTION] = func_str
         else:
             # TODO do the same print to std error and exit
-            print("Invalid list argument given", file=sys.stderr)
+            logger.error("Invalid list argument given: %s", command_args.command_parameters)
     else:
         result_map[FUNCTION] = command_args.command
     if command_args.rule:
@@ -75,4 +82,5 @@ def parse_command_line_statement(arguments_list):
         result_map[TIME] = command_args.time
     if command_args.uid:
         result_map[UID] = command_args.uid
+    message_logger.info("Command: %s", result_map)
     return result_map

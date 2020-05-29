@@ -1,5 +1,5 @@
 from main.config.constants import RULES, FUNCTION, OPTIONS, RULE, TIME, SEARCH_PARAMETERS, START_DATETIME, END_DATETIME, \
-    DataType, NAME
+    DataType, NAME, UID, MSG_UID
 from cache_to_disk import delete_old_disk_caches
 
 from main.formatter.formatter import Formatter
@@ -39,6 +39,10 @@ class MessageProcessor:
             self.clear_cache()
         elif function_to_call == "list_messages":
             # validate command line options
+            if UID in cli_dict:
+                search_parameters[MSG_UID] = cli_dict.get(UID)
+                self.list_messages(search_parameters, options)
+                return
             # Ensure we have a rule
             if not RULE in cli_dict:
                 error_and_exit("You must specify a rule to inorder to list msgs from Cirrus")
@@ -71,6 +75,13 @@ class MessageProcessor:
                 search_parameters.update(time_params)
                 logger.info("Adding time window to search of start-date: {}, end-date: {}".format(start_string, end_string))
             self.list_messages(search_parameters, options)
+            return
+        elif function_to_call == "list_metadata":
+            if UID in cli_dict:
+                search_parameters[MSG_UID] = cli_dict.get(UID)
+                self.list_message_metadata(search_parameters, options)
+                return
+            error_and_exit("You must supply the message unique id when making this request!")
         else:
             pass
 
@@ -85,6 +96,8 @@ class MessageProcessor:
     def list_messages(self, search_criteria, format_options):
         try:
             result = self.cirrus_proxy.search_for_messages(search_criteria)
+            record_count = len(result) if result else 0
+            logger.info("Obtained {} records from server".format(record_count))
             self.formatter.format(DataType.cirrus_messages, result, format_options)
         except FailedToCommunicateWithCirrus as err:
             error_and_exit(str(err))
@@ -95,8 +108,12 @@ class MessageProcessor:
     def list_message_events(self, options):
         pass
 
-    def list_message_metadata(self, options):
-        pass
+    def list_message_metadata(self, search_criteria, format_options):
+        try:
+            result = self.cirrus_proxy.get_metadata_for_message(search_criteria.get(MSG_UID))
+            self.formatter.format(DataType.cirrus_metadata, result, format_options)
+        except FailedToCommunicateWithCirrus as err:
+            error_and_exit(str(err))
 
     def list_message_transforms(self, options):
         pass

@@ -16,9 +16,9 @@ class Formatter:
         if options.get(OUTPUT) == JSON:
             message_logger.info(json.dump(data))
         elif options.get(OUTPUT) == TABLE:
-            self.__get_headings(data_type)
-            message_logger.info(
-            tabulate([self.__flatten_data_record(data_type, record) for record in data],
+            # self.__get_headings(data_type)
+            data_records = [self.__flatten_data_record(data_type, record) for record in data] if data else []
+            message_logger.info(tabulate(data_records,
                      self.__get_headings(data_type),
                      tablefmt="github")
             )
@@ -26,7 +26,7 @@ class Formatter:
             message_logger.info(", ".join(self.__get_headings(data_type)))
             if data:
                 for record in data:
-                    message_logger.info(",".join(self.__flatten_data_record(data_type, record)))
+                    message_logger.info(", ".join(str(elem) for elem in self.__flatten_data_record(data_type, record)))
             else:
                 logger.info("No data to output")
         else:
@@ -41,14 +41,17 @@ class Formatter:
 
     def __flatten_data_record(self, data_type, data):
         if data_type == DataType.config_rule:
-            return [self.__get_field(data, NAME), self.__get_field(data, "search_parameters", "source"), self.__get_field(data, "search_parameters", "destination"),\
-            self.__get_field(data, "search_parameters", "type"), self.__get_field(data, "search_parameters", "status")]
+            defined_fields = [[NAME], ["search_parameters", "source"], ["search_parameters", "destination"], ["search_parameters", "type"], ["search_parameters", "status"]]
+            return self.__get_defined_fields_for_datatype(data, defined_fields)
         elif data_type == DataType.cirrus_messages:
-            [self.__get_field("insertDate"), self.__get_field("id"), self.__get_field("unique-id"), self.__get_field("source"), self.__get_field("destination"), self.__get_field("sub-destination"), self.__get_field("type"), self.__get_field("sub-type"), self.__get_field("parent-id"), self.__get_field("process-id"), self.__get_field("business-id"), self.__get_field("message-status"), self.__get_field("message-date")]
+            defined_fields = [["insertDate"], ["id"], ["unique-id"], ["source"], ["destination"], ["sub-destination"], ["type"], ["sub-type"], ["parent-id"], ["process-id"], ["business-id"], ["message-status"], ["message-date"]]
+            return self.__get_defined_fields_for_datatype(data, defined_fields)
+        elif data_type == DataType.cirrus_metadata:
+            return []
         else:
-            pass
+            return []
 
-    def __get_field(self, data, *fields):
+    def __get_field(self, data, fields):
         """Given a data object and a list of fields, will perform the necessary gets to return the final field value"""
         iteration = 0
         for current_field in fields:
@@ -58,3 +61,6 @@ class Formatter:
                 data_obj = data_obj.get(current_field)
             iteration = iteration + 1
         return data_obj
+
+    def __get_defined_fields_for_datatype(self, data, fields_list):
+        return [self.__get_field(data, fields_names_tuple) for fields_names_tuple in fields_list]

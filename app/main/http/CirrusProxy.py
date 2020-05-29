@@ -38,6 +38,7 @@ class CirrusProxy:
             'Content-Type': 'application/json',
             'Accept': 'application/json',
             'Authorization': self.__generate_auth_string(),
+            'Cookie': 'incap_ses_197_948553=HqbEGT4xVj4Si70Vk+K7Asjaz14AAAAA/2rvA6qvWRgPgxLKBEf/JA==; visid_incap_948553=zdTCr8FnQPGt+CvShbOvTcjaz14AAAAAQUIPAAAAAAC+DnCtKBJcs26wOs9W2a58; AWSELBCORS=4989ED29189514746741032E1A52CD4E174825EE212D28E4FCF9FA6A7BAD2AB1E8058942FE90A743561E183929A1698BE9471B59EC1DAE8ED06CD7120445FB6DB9DB14D198; JSESSIONID=aMJK3rtOlDy7l5Jx0Xg3YYk0ZryX_FIzaFl865qt.agrewaappp002v; nlbi_948553=ThwZcTFNJRAf6kOLt/HIfQAAAADjCgFHC3h32WiDa2hye3rh; AWSELB=4989ED29189514746741032E1A52CD4E174825EE212D28E4FCF9FA6A7BAD2AB1E8058942FE90A743561E183929A1698BE9471B59EC1DAE8ED06CD7120445FB6DB9DB14D198; ROUTEID=.1; cookiePolicy=cookiePolicy',
             'Tenant': 'eu0000000001'
         }
         return headers
@@ -48,18 +49,21 @@ class CirrusProxy:
         if response.status_code != requests.codes["ok"]:
             logger.error("Failed get webpage: {}, status code: {}".format(url, response.status_code))
             raise FailedToCommunicateWithCirrus(url, response.status_code)
+        logger.debug("Response from server is: %s", response.text)
         return response.json()
 
     def __issue_post_request(self, url, data_dict):
         logger.debug("Issuing post request: {}".format(url))
-        logger.debug("Request headers are: {}".format(str(self.__get_headers())))
-        logger.debug("Request data is: {}".format(str(data_dict)))
-        response = requests.post(url, data=json.dumps(data_dict), headers=self.__get_headers())
+        logger.debug("Request headers are: {}".format(self.__get_headers()))
+        form_data = json.dumps(data_dict)
+        logger.debug("Request data is: {}".format(form_data))
+        response = requests.post(url, data=form_data, headers=self.__get_headers())
         if response.status_code != requests.codes["ok"]:
             logger.error("Failed to issue post request to: {}, received error code: {}".format(url, response.status_code))
             if response.text:
                 logger.error("Error response from server is: {}".format(response.json()))
             raise FailedToCommunicateWithCirrus(url, response.status_code)
+        logger.debug("Response from server is: %s", response.text)
         return response.json()
 
     def __get_url_and_issue(self, url_type, data_parameters_dict):
@@ -68,10 +72,10 @@ class CirrusProxy:
         if config.get(TYPE) == POST:
             default_request_data = config.get(DATA_DICT)
             merged_dict = {**default_request_data, **data_parameters_dict}
-            self.__issue_post_request(config.get(URL), merged_dict)
+            return self.__issue_post_request(config.get(URL), merged_dict)
         else:
             url = config.get(URL).format(data_parameters_dict.get(MSG_UID))
-            self.__issue_get_request(url)
+            return self.__issue_get_request(url)
 
     @cache_to_disk(1)
     def search_for_messages(self, search_parameters):
