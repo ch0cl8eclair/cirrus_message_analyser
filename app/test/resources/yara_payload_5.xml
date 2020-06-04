@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?><Envelope xmlns:BusinessClient="xalan://com.adaptris.cirrus.xml.BusinessClient" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://mappings.f4f.com/F4FXML/Schemas/v5/movement.xsd">
+  <EnvelopeHeader>
+    <SchemaVersion>5</SchemaVersion>
+    <EnvelopeCreated>20200529 16:38:52</EnvelopeCreated>
+    <EnvelopeTrackingID>0692169118</EnvelopeTrackingID>
+    <EnvelopeRevisionNumber>1</EnvelopeRevisionNumber>
+    <SourcePartnerID>uk0000000037</SourcePartnerID>
+    <SourceDivisionID>uk0000000037</SourceDivisionID>
+    <DestinationPartnerID>uk0000000036</DestinationPartnerID>
+    <DestinationDivisionID>uk0000000036</DestinationDivisionID>
+    <TestIndicator>False</TestIndicator>
+  </EnvelopeHeader>
+  <MovementDocument DocumentSequenceNumber="1" MessageLifecycle="New" MovementDocumentType="Goods Issued Note">
+    <DocumentHeader Language="EN" Currency="EUR">
+      <DocumentReference Type="Sales Order Number" AssignedBy="Buyer">5503087</DocumentReference>
+      <DocumentReference Type="Delivery Note Number" AssignedBy="Supplier">0692169118</DocumentReference>
+      <DocumentDate Type="Document Created">20200529 14:38:53</DocumentDate>
+      <Organisation Type="Supplier">
+        <Reference Type="Sales Area ID" AssignedBy="Supplier" Explanation="HAZ2">HAZ2</Reference>
+        <Reference Type="Distribution Channel ID" AssignedBy="Supplier" Explanation=""/>
+      </Organisation>
+      <Organisation Type="Buyer">
+        <Reference Type="Account Number" AssignedBy="Supplier">0000105883</Reference>
+        <Name>HERMOUET</Name>
+      </Organisation>
+      <MovementDetails Phase="001" Movement="001" DeliveryCollectionIndicator="Collection">
+        <Reference Type="Route ID" AssignedBy="Supplier">Camion client</Reference>
+        <Reference Type="Loading Number" AssignedBy="Supplier" Explanation="Delivery Status">Planned</Reference>
+        <Date Type="Expected Despatch Date">20200514</Date>
+        <Date Type="Actual Loading Date">20200514</Date>
+        <Location Type="Delivery Point">
+          <Reference Type="Location Code" AssignedBy="Supplier">0000752752</Reference>
+          <Address>
+            <Name>M.MARTIN Gérard</Name>
+            <StreetAddress>LASCOUX</StreetAddress>
+            <StreetAddress>R</StreetAddress>
+            <CityName>FIEF-SAUVIN</CityName>
+            <PostalCode>49600</PostalCode>
+            <CountryCode>FR</CountryCode>
+          </Address>
+        </Location>
+        <Terms>
+          <Incoterms>
+            <IncotermsCode>FCA</IncotermsCode>
+            <IncotermsLocation>AMBES</IncotermsLocation>
+          </Incoterms>
+        </Terms>
+      </MovementDetails>
+      <Narrative Type="Special Instructions" Sequence="1"/>
+    </DocumentHeader>
+    <DocumentLine LineStatus="New" LineNumber="000010" LineCategory="TAN">
+      <LineReference AssignedBy="Supplier" Type="Sales Order Number" LineNumber="000020">5503087</LineReference>
+      <LineReference AssignedBy="Buyer" Type="Purchase Order Number" LineNumber="000020">CA020747</LineReference>
+      <MovementDetails Phase="1" Movement="1" DeliveryCollectionIndicator="Collection">
+        <Location Type="Storage Location">
+          <Reference Type="Location Code" AssignedBy="Supplier">AMB2</Reference>
+          <Address>
+            <Name>Yara Ambes</Name>
+          </Address>
+        </Location>
+      </MovementDetails>
+      <LineComponent>
+        <Product>
+          <Specification>
+            <Reference Type="Identifier" AssignedBy="Supplier">PA102G78A</Reference>
+            <Description AssignedBy="Supplier">EXTRAN 33,5 00 00 / BB 600 kg (AMB)</Description>
+          </Specification>
+          <Quantity Type="Despatched" AssignedBy="Supplier" UnitOfMeasure="Metric Tonne">28.200</Quantity>
+        </Product>
+      </LineComponent>
+      <Narrative Type="User Defined 1" Sequence="1" Language="EN" SendersTextCode="0001"/>
+      <Narrative Type="User Defined 1" Sequence="2" Language="EN" SendersTextCode="0001"/>
+      <Narrative Type="User Defined 1" Sequence="3" Language="EN" SendersTextCode="0001"/>
+      <Narrative Type="User Defined 1" Sequence="4" Language="EN" SendersTextCode="0001"/>
+      <Narrative Type="User Defined 1" Sequence="5" Language="EN" SendersTextCode="0001"/>
+      <Narrative Type="User Defined 1" Sequence="6" Language="EN" SendersTextCode="0001"/>
+      <Narrative Type="User Defined 1" Sequence="7" Language="EN" SendersTextCode="0001"/>
+      <Narrative Type="User Defined 1" Sequence="8" Language="EN" SendersTextCode="0001"/>
+      <Narrative Type="User Defined 1" Sequence="9" Language="EN" SendersTextCode="0001"/>
+      <Narrative Type="User Defined 1" Sequence="10" Language="EN" SendersTextCode="0001"/>
+      <Narrative Type="User Defined 1" Sequence="11" Language="EN" SendersTextCode="0001"/>
+      <Narrative Type="User Defined 1" Sequence="12" Language="EN" SendersTextCode="0001"/>
+      <Narrative Type="User Defined 1" Sequence="13" Language="EN" SendersTextCode="0001"/>
+      <Narrative Type="User Defined 1" Sequence="14" Language="EN" SendersTextCode="0001"/>
+      <Narrative Type="User Defined 1" Sequence="15" Language="EN" SendersTextCode="0007"/>
+      <Narrative Type="User Defined 1" Sequence="16" Language="EN" SendersTextCode="0007"/>
+      <Narrative Type="User Defined 1" Sequence="17" Language="EN" SendersTextCode="0007"/>
+      <Narrative Type="User Defined 1" Sequence="18" Language="EN" SendersTextCode="0007"/>
+      <Narrative Type="User Defined 1" Sequence="19" Language="EN" SendersTextCode="0007"/>
+      <Narrative Type="User Defined 1" Sequence="20" Language="EN" SendersTextCode="0007"/>
+      <Narrative Type="User Defined 1" Sequence="21" Language="EN" SendersTextCode="0007"/>
+      <Narrative Type="User Defined 1" Sequence="22" Language="EN" SendersTextCode="0007"/>
+      <Narrative Type="User Defined 1" Sequence="23" Language="EN" SendersTextCode="0007"/>
+      <Narrative Type="User Defined 1" Sequence="24" Language="EN" SendersTextCode="0007"/>
+      <Narrative Type="User Defined 1" Sequence="25" Language="EN" SendersTextCode="0007"/>
+      <Narrative Type="User Defined 1" Sequence="26" Language="EN" SendersTextCode="0007"/>
+      <Narrative Type="User Defined 1" Sequence="27" Language="EN" SendersTextCode="0007"/>
+      <Narrative Type="User Defined 1" Sequence="28" Language="EN" SendersTextCode="0007"/>
+    </DocumentLine>
+    <DocumentTrailer>
+      <Totals TotalType="Control">
+        <TotalLineCount>0</TotalLineCount>
+      </Totals>
+    </DocumentTrailer>
+  </MovementDocument>
+  <EnvelopeTrailer>
+    <TotalMessageCount>1</TotalMessageCount>
+  </EnvelopeTrailer>
+</Envelope>

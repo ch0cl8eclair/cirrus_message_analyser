@@ -1,0 +1,12 @@
+[
+  {
+    "name": "YARA_MOVEMENTS_BASIC",
+    "search_parameters": {
+      "source": "uk0000000037",
+      "destination": "uk0000000036",
+      "type": "movement",
+      "message-status": "FAILED"
+    },
+    "algorithms": ["YaraMovementPostJson"]
+  }
+]
