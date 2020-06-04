@@ -1,4 +1,5 @@
 from enum import Enum
+import os
 
 CREDENTIALS = "credentials"
 RULES = "rules"
@@ -16,6 +17,8 @@ URL = "url"
 URLS = "urls"
 NAME = "name"
 TYPE = "type"
+SOURCE = "source"
+DESTINATION = "destination"
 GET = "GET"
 POST = "POST"
 
@@ -30,15 +33,27 @@ RULE = 'rule'
 TIME = 'time'
 UID = 'uid'
 OPTIONS = 'options'
+LIMIT = "limit"
 
 TODAY = "today"
 YESTERDAY = "yesterday"
 DAYS = "days"
 HOURS = "hours"
 SEARCH_PARAMETERS = "search_parameters"
+ALGORITHMS = "algorithms"
 
 START_DATETIME = "start-datetime"
 END_DATETIME = "end-datetime"
+
+CIRRUS_COOKIE = "cirrus_cookie"
+CACHED_COOKIE_FILE = os.path.join(os.path.dirname(__file__), '../../../cache/cirrus_cookies.txt')
+
+MESSAGE_ID = "message-id"
+TRACKING_POINT = "tracking-point"
+PAYLOAD = "payload"
+
+MESSAGE_STATUS = "message-status"
+UNIQUE_ID = "unique-id"
 
 
 class DataType(Enum):
@@ -48,3 +63,5 @@ class DataType(Enum):
     cirrus_metadata = 4
     cirrus_events = 5
     cirrus_transforms = 6
+    analysis_yara_movements = 7
+    analysis_messages = 8

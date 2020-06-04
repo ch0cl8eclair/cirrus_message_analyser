@@ -2,7 +2,8 @@ import unittest
 import datetime
 
 from main.config.constants import YESTERDAY, TODAY, DAYS, HOURS
-from main.utils.utils import validate_duration_string, calculate_start_and_end_times_from_duration, parse_datetime_str
+from main.utils.utils import validate_duration_string, calculate_start_and_end_times_from_duration, parse_datetime_str, \
+    convert_timestamp_to_datetime_str
 
 
 class UtilsDateTimeTest(unittest.TestCase):
@@ -13,8 +14,8 @@ class UtilsDateTimeTest(unittest.TestCase):
         yesterday = now + datetime.timedelta(days=-1)
 
         # Date comparison
-        self.__compare_datetime_with_delta(yesterday, result["start_datetime"])
-        self.__compare_datetime_with_delta(now, result["end_datetime"])
+        self.__compare_datetime_with_delta(yesterday, result["start-date"])
+        self.__compare_datetime_with_delta(now, result["end-date"])
 
     def test_calculate_start_and_end_times_from_duration_1h(self):
         cli_cmd = "1h"
@@ -23,8 +24,8 @@ class UtilsDateTimeTest(unittest.TestCase):
         hour_ago = now + datetime.timedelta(hours=-1)
 
         # Date comparison
-        self.__compare_datetime_with_delta(hour_ago, result["start_datetime"])
-        self.__compare_datetime_with_delta(now, result["end_datetime"])
+        self.__compare_datetime_with_delta(hour_ago, result["start-date"])
+        self.__compare_datetime_with_delta(now, result["end-date"])
 
     def test_calculate_start_and_end_times_from_duration_today(self):
         cli_cmd = "today"
@@ -33,10 +34,10 @@ class UtilsDateTimeTest(unittest.TestCase):
         midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
         # Date comparison
-        self.__compare_datetime_with_delta(midnight, result["start_datetime"])
-        self.__compare_datetime_with_delta(now, result["end_datetime"])
+        self.__compare_datetime_with_delta(midnight, result["start-date"])
+        self.__compare_datetime_with_delta(now, result["end-date"])
         # String comparison because we can
-        self.assertEquals(midnight.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z', result["start_datetime"])
+        self.assertEquals(midnight.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z', result["start-date"])
 
     def test_calculate_start_and_end_times_from_duration_yesterday(self):
         cli_cmd = "yesterday"
@@ -47,11 +48,11 @@ class UtilsDateTimeTest(unittest.TestCase):
         midnight_today = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
         # Date comparison
-        self.__compare_datetime_with_delta(midnight_yesterday, result["start_datetime"])
-        self.__compare_datetime_with_delta(midnight_today, result["end_datetime"])
+        self.__compare_datetime_with_delta(midnight_yesterday, result["start-date"])
+        self.__compare_datetime_with_delta(midnight_today, result["end-date"])
         # String comparison
-        self.assertEquals(midnight_yesterday.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z', result["start_datetime"])
-        self.assertEquals(midnight_today.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z', result["end_datetime"])
+        self.assertEquals(midnight_yesterday.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z', result["start-date"])
+        self.assertEquals(midnight_today.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z', result["end-date"])
 
     def test_validate_duration_string_errors(self):
         with self.assertRaises(Exception) as context:
@@ -88,24 +89,30 @@ class UtilsDateTimeTest(unittest.TestCase):
     def test_parse_datetime_str_full_format(self):
         actual_date_time = parse_datetime_str("2020-05-17T10:30:08.877Z")
         expected = datetime.datetime(2020, 5, 17)
-        expected.replace(hour=10, minute=30, second=8, microsecond=877)
+        expected = expected.replace(hour=10, minute=30, second=8, microsecond=877)
+        print(datetime.timedelta(seconds=1))
         self.assertAlmostEqual(expected, actual_date_time, delta=datetime.timedelta(seconds=1))
 
     def test_parse_datetime_str_missing_microseconds(self):
         actual_date_time = parse_datetime_str("2020-05-17T10:30:08")
         expected = datetime.datetime(2020, 5, 17)
-        expected.replace(hour=10, minute=30, second=8, microsecond=0)
+        expected = expected.replace(hour=10, minute=30, second=8, microsecond=0)
         self.assertAlmostEqual(expected, actual_date_time, delta=datetime.timedelta(seconds=1))
 
     def test_parse_datetime_str_missing_microseconds_with_zulu(self):
         actual_date_time = parse_datetime_str("2020-05-17T10:30:08Z")
         expected = datetime.datetime(2020, 5, 17)
-        expected.replace(hour=10, minute=30, second=8, microsecond=0)
+        expected = expected.replace(hour=10, minute=30, second=8, microsecond=0)
         self.assertAlmostEqual(expected, actual_date_time, delta=datetime.timedelta(seconds=1))
 
     def __compare_datetime_with_delta(self, expected_date, actual_string_datetime_str):
         actual_datetime = datetime.datetime.strptime(actual_string_datetime_str, "%Y-%m-%dT%H:%M:%S.%fZ")
         self.assertAlmostEqual(expected_date, actual_datetime, delta=datetime.timedelta(seconds=1))
+
+    def test_convert_timestamp_to_datetime_str(self):
+        timestamp = 1591270622000
+        actual = convert_timestamp_to_datetime_str(timestamp)
+        self.assertEquals("2020-06-04T12:37:02.000Z", actual)
 
 
 if __name__ == '__main__':

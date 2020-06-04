@@ -100,3 +100,12 @@ def format_datetime_to_zulu(provided_datetime):
 
 def get_datetime_now_as_zulu():
     return format_datetime_to_zulu(datetime.datetime.utcnow())
+
+
+def clear_quotes(given_str):
+    return given_str.replace("'", "").replace('"', '')
+
+
+def convert_timestamp_to_datetime_str(timestamp):
+    date = datetime.datetime.fromtimestamp(timestamp/1e3)
+    return format_datetime_to_zulu(date)

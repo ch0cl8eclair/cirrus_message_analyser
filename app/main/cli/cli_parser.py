@@ -1,6 +1,7 @@
 import argparse
 
-from main.config.constants import FUNCTION, UID, TIME, CSV, JSON, TABLE, RULE, OPTIONS
+from main.config.constants import FUNCTION, UID, TIME, CSV, JSON, TABLE, RULE, OPTIONS, OUTPUT, START_DATETIME, \
+    END_DATETIME, LIMIT
 
 from main.config.configuration import ConfigSingleton, LOGGING_CONFIG_FILE
 import logging
@@ -48,8 +49,9 @@ def create_command_parser(parent_parser):
     command_parser.add_argument("--uid", help="Specify the message unique id")
     command_parser.add_argument("--rule", help="Specify the processing rule to use")
     command_parser.add_argument("--time", help="Specify the time window to filter on eg today, yesterday, 1d, 3h")
-    command_parser.add_argument("--start-datetime", help="Specify the start date time: 2020-05-17T10:30:08.877Z")
-    command_parser.add_argument("--end-datetime", help="Specify the end date time: 2020-05-17T10:30:08.877Z")
+    command_parser.add_argument("--start-datetime", dest="start_datetime", help="Specify the start date time: 2020-05-17T10:30:08.877Z")
+    command_parser.add_argument("--end-datetime", dest="end_datetime", help="Specify the end date time: 2020-05-17T10:30:08.877Z")
+    command_parser.add_argument("--limit", type=int, choices=range(1, 100), help="upper limit on the number of msgs processed")
     return command_parser
 
 
@@ -76,11 +78,37 @@ def parse_command_line_statement(arguments_list):
             logger.error("Invalid list argument given: %s", command_args.command_parameters)
     else:
         result_map[FUNCTION] = command_args.command
+    # TODO handle start and end datetime
     if command_args.rule:
         result_map[RULE] = command_args.rule
     if command_args.time:
         result_map[TIME] = command_args.time
+    if command_args.start_datetime:
+        result_map[START_DATETIME] = command_args.start_datetime
+    if command_args.end_datetime:
+        result_map[END_DATETIME] = command_args.end_datetime
     if command_args.uid:
         result_map[UID] = command_args.uid
-    message_logger.info("Command: %s", result_map)
+    if command_args.limit:
+        result_map[LIMIT] = command_args.limit
+    log_requested_command(result_map)
     return result_map
+
+
+def log_requested_command(cli_map):
+    if cli_map[FUNCTION].startswith("list"):
+        output_str = "Getting {}".format(cli_map[FUNCTION])
+    else:
+        output_str = "Performing {}".format(cli_map[FUNCTION])
+    if RULE in cli_map:
+        output_str = output_str + ", with rule: {}".format(cli_map[RULE])
+    if TIME in cli_map:
+        output_str = output_str + ", with time: {}".format(cli_map[TIME])
+    elif START_DATETIME in cli_map:
+        output_str = output_str + ", with start datetime: {}".format(cli_map[START_DATETIME])
+        if END_DATETIME in cli_map:
+            output_str = output_str + "& end datetime: {}".format(cli_map[END_DATETIME])
+    if UID in cli_map:
+        output_str = output_str + ", with msg uid: {}".format(cli_map[UID])
+
+    message_logger.info(output_str + " & output={}".format(cli_map[OPTIONS][OUTPUT]))

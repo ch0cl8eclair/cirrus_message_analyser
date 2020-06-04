@@ -6,9 +6,10 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
 from main.config.configuration import ConfigSingleton, get_configuration_dict
-from main.config.constants import CREDENTIALS, USERNAME, PASSWORD
+from main.config.constants import CREDENTIALS, USERNAME, PASSWORD, CIRRUS_COOKIE, CACHED_COOKIE_FILE
 import time
 import sys
+import os
 
 
 def enter_data_into_field(text_file_component, text_to_enter, hit_return=False):
@@ -40,10 +41,30 @@ def get_children_text(tag):
     return original_text
 
 
-def main():
-    config = ConfigSingleton(get_configuration_dict())
+def write_cookies_to_file_cache(cookies_str):
+    with open(CACHED_COOKIE_FILE, "w") as file1:
+        file1.write(cookies_str)
 
-    driver = webdriver.Chrome('../../drivers/chromedriver80_win32/chromedriver')
+
+def read_cookies_file():
+    with open(CACHED_COOKIE_FILE, "r") as file1:
+        return file1.read()
+
+
+def cookies_file_exists():
+    return os.path.isfile(CACHED_COOKIE_FILE)
+
+
+def delete_cookies_file():
+    os.remove(CACHED_COOKIE_FILE)
+
+
+def obtain_cookies_from_cirrus_manually():
+    config = ConfigSingleton()
+
+    # TODO I found this differs with you installed chrome version, 83 or 81 etc
+    chrome_driver_path = os.path.join(os.path.dirname(__file__), '../../drivers/chromedriver83_win32/chromedriver')
+    driver = webdriver.Chrome(chrome_driver_path)
     driver.get("https://cirrusconnect.eu.f4f.com/cirrus-connect/")
 
     executor_url = driver.command_executor._url
@@ -103,30 +124,18 @@ def main():
     else:
         print("Failed to find drop down menu", file=sys.stderr)
 
-    # print("Going to press user dropdown")
-    # user_select = driver.find_element_by_id("topMenuForm:j_idt17_button")
-    # if user_select:
-    #     user_select.click()
-    # else:
-    #     print("User select item not found")
-
-    # print("Going to press superuser")
-    # super_user_menu_item = driver.find_element_by_css_selector('a[class*="ui-menuitem-link ui-corner-all"]')
-    # if super_user_menu_item:
-    #     super_user_menu_item.click()
-    # else:
-    #     print("SuperUser select item not found")
-
-    # Wait long
-    # click button: topMenuForm:j_idt17_button
-    # Wait for popup menu
-    # li class = ui-menuitem ui-widget ui-corner-all, role = menuitem
-    # a class = ui-menuitem-link ui-corner-all
     print(driver.current_url)
-    print("; ".join(["{}={}".format(cookie.get("name"), cookie.get("value")) for cookie in driver.get_cookies()]))
-    # print(driver.get_cookies())
+    cirrus_super_user_cookie = "; ".join(["{}={}".format(cookie.get("name"), cookie.get("value")) for cookie in driver.get_cookies()])
+    print(cirrus_super_user_cookie)
+    write_cookies_to_file_cache(cirrus_super_user_cookie)
+    # get_configuration_dict()[CIRRUS_COOKIE] = cirrus_super_user_cookie
     time.sleep(10)
     driver.close()
+
+
+def main():
+    config = ConfigSingleton(get_configuration_dict())
+    obtain_cookies_from_cirrus_manually()
 
 
 if __name__ == '__main__':

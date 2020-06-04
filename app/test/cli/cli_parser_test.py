@@ -63,6 +63,12 @@ class CommandLineParserTest(unittest.TestCase):
         expected = {'function': 'analyse', 'rule': 'YARA_MOVEMENTS_BASIC', 'time': 'yesterday', 'options': {'output': 'csv', 'quiet': False, 'verbose': False}}
         self.assertEqual(expected, self.call_sut_func(cli_cmd))
 
+    def test_analyse_messages_with_limit(self):
+        cli_cmd = """cmc.py analyse --rule YARA_MOVEMENTS_BASIC --time yesterday --limit 1"""
+        expected = {'function': 'analyse', 'rule': 'YARA_MOVEMENTS_BASIC', 'time': 'yesterday', 'limit': 1, 'options': {'output': 'csv', 'quiet': False, 'verbose': False}}
+        self.assertEqual(expected, self.call_sut_func(cli_cmd))
+
+
     def test_list_rules(self):
         cli_cmd = """cmc.py list rules"""
         expected = {'function': 'list_rules', 'options': {'output': 'csv', 'quiet': False, 'verbose': False}}

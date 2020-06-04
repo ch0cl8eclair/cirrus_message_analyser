@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?><o>
+<movements class="array">
+<e class="object">
+<supplier_code type="string">HAZ2</supplier_code>
+<account_code type="string">0000105883</account_code>
+<account_name type="string">HERMOUET</account_name>
+<movement_type_code type="string">D</movement_type_code>
+<shipto_code type="string">0000752752</shipto_code>
+<shipto_name type="string">M.MARTIN Gérard</shipto_name>
+<shipto_address_1 type="string">LASCOUX</shipto_address_1>
+<shipto_address_2 type="string">R</shipto_address_2>
+<shipto_address_3 type="string">FIEF-SAUVIN</shipto_address_3>
+<shipto_address_4 type="string"/>
+<shipto_postcode type="string">49600</shipto_postcode>
+<shipto_country type="string">FR</shipto_country>
+<shipfrom_name>Yara Ambes</shipfrom_name>
+<order_number type="string">5503087</order_number>
+<order_date type="string"/>
+<supplier_movement_reference type="string">0692169118</supplier_movement_reference>
+<movement_date type="string">2020-05-14</movement_date>
+<requested_delivery_date type="string">2020-05-14</requested_delivery_date>
+<order_code type="string">5503087</order_code>
+<status_code type="string">DS10</status_code>
+<movement_lines class="array">
+<e class="object">
+<order_line_number type="string">10</order_line_number>
+<product_code type="string">PA102G78A</product_code>
+<product_description type="string">EXTRAN 33,5 00 00 / BB 600 kg (AMB)</product_description>
+<order_qty type="string"/>
+<shipto_code type="string">0000752752</shipto_code>
+<shipfrom_code type="string">HAZ2</shipfrom_code>
+<status_code type="string">DL10</status_code>
+<despatched_qty type="string">28.200</despatched_qty>
+<order_uom/>
+<despatched_uom>TNE</despatched_uom>
+<line_number>1</line_number>
+</e>
+</movement_lines>
+</e>
+</movements>
+<transaction_options class="object">
+<continue_on_fail type="boolean">false</continue_on_fail>
+<rollback_on_error type="boolean">true</rollback_on_error>
+</transaction_options>
+</o>

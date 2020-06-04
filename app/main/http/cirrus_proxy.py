@@ -6,7 +6,8 @@ from cache_to_disk import cache_to_disk
 
 from main.config.configuration import ConfigSingleton, LOGGING_CONFIG_FILE
 from main.config.constants import CREDENTIALS, USERNAME, PASSWORD, URLS, \
-    NAME, URL, GET, TYPE, POST, DATA_DICT, MSG_UID
+    NAME, URL, GET, TYPE, POST, DATA_DICT, MSG_UID, CIRRUS_COOKIE
+from main.http.cirrus_session_proxy import read_cookies_file
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 import logging
@@ -38,12 +39,22 @@ class CirrusProxy:
             'Content-Type': 'application/json',
             'Accept': 'application/json',
             'Authorization': self.__generate_auth_string(),
-            'Cookie': 'incap_ses_197_948553=HqbEGT4xVj4Si70Vk+K7Asjaz14AAAAA/2rvA6qvWRgPgxLKBEf/JA==; visid_incap_948553=zdTCr8FnQPGt+CvShbOvTcjaz14AAAAAQUIPAAAAAAC+DnCtKBJcs26wOs9W2a58; AWSELBCORS=4989ED29189514746741032E1A52CD4E174825EE212D28E4FCF9FA6A7BAD2AB1E8058942FE90A743561E183929A1698BE9471B59EC1DAE8ED06CD7120445FB6DB9DB14D198; JSESSIONID=aMJK3rtOlDy7l5Jx0Xg3YYk0ZryX_FIzaFl865qt.agrewaappp002v; nlbi_948553=ThwZcTFNJRAf6kOLt/HIfQAAAADjCgFHC3h32WiDa2hye3rh; AWSELB=4989ED29189514746741032E1A52CD4E174825EE212D28E4FCF9FA6A7BAD2AB1E8058942FE90A743561E183929A1698BE9471B59EC1DAE8ED06CD7120445FB6DB9DB14D198; ROUTEID=.1; cookiePolicy=cookiePolicy',
+            'Cookie': self.__get_cached_cookies(),
             'Tenant': 'eu0000000001'
         }
         return headers
 
-    def __issue_get_request(self, url):
+    @cache_to_disk(7)
+    def get(self, url):
+        """Issue a simple http get to fetch an xsl file or similiar"""
+        logger.debug("Issuing simple get request: {}".format(url))
+        response = requests.get(url)
+        if response.status_code != requests.codes["ok"]:
+            logger.error("Failed get url: {}, status code: {}".format(url, response.status_code))
+            raise FailedToCommunicateWithCirrus(url, response.status_code)
+        return response.text
+
+    def __issue_cirrus_get_request(self, url):
         logger.debug("Issuing get request: {}".format(url))
         response = requests.get(url, headers=self.__get_headers())
         if response.status_code != requests.codes["ok"]:
@@ -52,7 +63,7 @@ class CirrusProxy:
         logger.debug("Response from server is: %s", response.text)
         return response.json()
 
-    def __issue_post_request(self, url, data_dict):
+    def __issue_cirrus_post_request(self, url, data_dict):
         logger.debug("Issuing post request: {}".format(url))
         logger.debug("Request headers are: {}".format(self.__get_headers()))
         form_data = json.dumps(data_dict)
@@ -72,10 +83,10 @@ class CirrusProxy:
         if config.get(TYPE) == POST:
             default_request_data = config.get(DATA_DICT)
             merged_dict = {**default_request_data, **data_parameters_dict}
-            return self.__issue_post_request(config.get(URL), merged_dict)
+            return self.__issue_cirrus_post_request(config.get(URL), merged_dict)
         else:
             url = config.get(URL).format(data_parameters_dict.get(MSG_UID))
-            return self.__issue_get_request(url)
+            return self.__issue_cirrus_get_request(url)
 
     @cache_to_disk(1)
     def search_for_messages(self, search_parameters):
@@ -98,9 +109,9 @@ class CirrusProxy:
         return self.__get_url_and_issue("GET_MESSAGE_METADATA", {MSG_UID: msg_uid})
 
     @cache_to_disk(7)
-    def get_transforms_for_message(self, msg_uid):
+    def get_transforms_for_message(self, search_parameters):
         logger.info("Issue search for message transforms to cirrus")
-        return self.__get_url_and_issue("GET_MESSAGE_TRANSFORMS", {MSG_UID: msg_uid})
+        return self.__get_url_and_issue("GET_MESSAGE_TRANSFORMS", search_parameters)
 
     @cache_to_disk(7)
     def __generate_auth_string(self):
@@ -113,6 +124,10 @@ class CirrusProxy:
         logger.debug("Credentials encoded as: {}".format(base64_message))
 
         return "Basic {}".format(base64_message)
+
+    @cache_to_disk(1)
+    def __get_cached_cookies(self):
+        return read_cookies_file()
 
     def __get_config_url(self, url_name):
         configured_urls = self.configuration.get(URLS)

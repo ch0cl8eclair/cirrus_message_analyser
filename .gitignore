@@ -15,3 +15,4 @@ ant/resources/ivy.jar
 **/*.pyc
 **/*.log
 venv/**
+app/resources/credentials.json
