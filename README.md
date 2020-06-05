@@ -21,6 +21,13 @@ git clone https://gitlab.agb.rbxd.ds/klairb/cirrus_message_analyser.git
 ```
 pip install -r ./app/requirements.txt
 ```
+5. Installl the chrome webdriver for your chrome browser version.
+```
+Open chrome, select menu -> help -> about google chrome and read the version number eg 83.0.4103
+Visit https://chromedriver.chromium.org/downloads and download the corresponding version file
+Unzip the file to the app/driver folder and give it a unique name eg chromedriver83_win32. There needs to be an executable within the folder with the default name: chromedriver
+Update the config to point to this folder name either via the app/resources/configuration.json with variable name: chrome-driver-folder or set an environment variable with the name: CHROME-DRIVER-FOLDER
+```
 
 ## Operation
 
@@ -28,6 +35,12 @@ The code uses a Cirrus REST api to obtain the message details and performs analy
 The code uses your Cirrus credentials and assumes you have super user access as per a support user.
 
 Unfortunately the API does not provide the ability to switch to super user so this is done by mimicking the user'sinteraction with the website using selenium. A chrome browser is opened, the user interactions performed and then the required tokens are obtained. The browser window closes after a short while.
+
+### Output formats
+The tool permitts output as JSON, CSV and Tabular display.
+
+### Environment variables
+You can set your Cirrus credentials either in the credentials.json file or in the following environment variables: USERNAME, PASSWORD.
 
 ## Configuration
 
@@ -108,4 +121,9 @@ cirrus-messages-summary.log - Contains message summary data only, these is the d
 Sometimes the code will fail to find messages on cirrus. A common reason is that your sesion has expired, as the code caches certain session cookies. To clear these and force the code to obtain fresh details run:
 ```
 python cmc.py clear-cache
+```
+
+Selenium requires an exact match with your Chrome browser version (with regards to obtaining super user access). Should your chrome version be updated by a security patch then the functionality will break.
+```
+See step five on installation to fix this.
 ```
