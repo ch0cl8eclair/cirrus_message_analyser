@@ -40,7 +40,7 @@ Unfortunately the API does not provide the ability to switch to super user so th
 The tool permitts output as JSON, CSV and Tabular display.
 
 ### Environment variables
-You can set your Cirrus credentials either in the credentials.json file or in the following environment variables: USERNAME, PASSWORD.
+You can set your Cirrus credentials either in the credentials.json file or in the following environment variables: CIRRUS_USERNAME, CIRRUS_PASSWORD.
 
 ## Configuration
 
