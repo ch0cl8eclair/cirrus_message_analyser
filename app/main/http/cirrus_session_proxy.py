@@ -6,10 +6,23 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
 from main.config.configuration import ConfigSingleton, get_configuration_dict
-from main.config.constants import CREDENTIALS, USERNAME, PASSWORD, CIRRUS_COOKIE, CACHED_COOKIE_FILE
+from main.config.constants import CREDENTIALS, USERNAME, PASSWORD, CIRRUS_COOKIE, CACHED_COOKIE_FILE, \
+    CHROME_DRIVER_FOLDER, CIRRUS_CONNECT_WEB_URL
 import time
 import sys
 import os
+import pathlib
+from main.config.configuration import ConfigSingleton, LOGGING_CONFIG_FILE
+import logging
+from logging.config import fileConfig
+
+from main.utils.utils import error_and_exit
+
+fileConfig(LOGGING_CONFIG_FILE)
+logger = logging.getLogger('main')
+
+
+DRIVER_ERROR_MSG = "Chrome driver does not exist, please install into drivers directory and set config variable: {}, or set env variable".format(CHROME_DRIVER_FOLDER)
 
 
 def enter_data_into_field(text_file_component, text_to_enter, hit_return=False):
@@ -22,6 +35,7 @@ def enter_data_into_field(text_file_component, text_to_enter, hit_return=False):
 def login(driver, config):
     username = config.get(CREDENTIALS).get(USERNAME)
     password = config.get(CREDENTIALS).get(PASSWORD)
+    logger.debug("Logging in with username: [{}] and password: [{}]".format(username, password))
 
     username_field = driver.find_element_by_name("j_username")
     password_field = driver.find_element_by_name("j_password")
@@ -59,25 +73,63 @@ def delete_cookies_file():
     os.remove(CACHED_COOKIE_FILE)
 
 
+def chromedriver_file_exists(folder):
+    for root, dirs, files in os.walk(folder):
+        for file in files:
+            if file == "chromedriver" or file == "chromedriver.exe":
+                return True
+    return False
+
+
+def get_driver_folder_and_validate(configured_chrome_folder):
+    p = pathlib.Path(pathlib.Path(__file__).parent, '..', '..', 'drivers')
+    logger.debug("Path to driver is: {}, path exists: {}".format(str(p), os.path.exists(str(p))))
+    chrome_driver_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'drivers',  configured_chrome_folder)
+    if not os.path.exists(chrome_driver_dir):
+        logger.error("Failed to find chrome driver within folder: [{}]".format(chrome_driver_dir))
+        error_and_exit("Chrome driver folder does not exist")
+    logger.info("Chrome driver folder exists: {}".format(os.path.exists(chrome_driver_dir)))
+    return chrome_driver_dir
+
+
+def get_driver_file_and_validate(chrome_driver_dir):
+    logger.debug("Checking for chrome driver file located at: {}".format(chrome_driver_dir))
+    if not chromedriver_file_exists(chrome_driver_dir):
+        logger.error("Failed to find chrome driver within folder: [{}]".format(chrome_driver_dir))
+        error_and_exit(DRIVER_ERROR_MSG)
+    # Repeating ourselves here but we need to return the full file path to selenium
+    chrome_driver_file = os.path.join(chrome_driver_dir, 'chromedriver')
+    if not os.path.exists(chrome_driver_dir):
+        error_and_exit(DRIVER_ERROR_MSG)
+    return chrome_driver_file
+
+
 def obtain_cookies_from_cirrus_manually():
+    # Get config details and check values
     config = ConfigSingleton()
+    configured_chrome_folder = config.get(CHROME_DRIVER_FOLDER)
+    chrome_driver_dir = get_driver_folder_and_validate(configured_chrome_folder)
+    chrome_driver_file = get_driver_file_and_validate(chrome_driver_dir)
 
-    # TODO I found this differs with you installed chrome version, 83 or 81 etc
-    chrome_driver_path = os.path.join(os.path.dirname(__file__), '../../drivers/chromedriver83_win32/chromedriver')
-    driver = webdriver.Chrome(chrome_driver_path)
-    driver.get("https://cirrusconnect.eu.f4f.com/cirrus-connect/")
+    # Connect driver
+    driver = webdriver.Chrome(chrome_driver_file)
+    web_url = config.get(CIRRUS_CONNECT_WEB_URL)
+    driver.get(web_url)
 
+    # Driver details
     executor_url = driver.command_executor._url
     session_id = driver.session_id
-    print("Executor url: {}, session_id: {}".format(executor_url, session_id))
+    logger.debug("Executor url: {}, session_id: {}".format(executor_url, session_id))
 
-
+    # Now perform steps to login and become super user in Cirrus
+    # Once done we obtain the cookie and exit the driver
+    # We may have an accept cookies popup blocking us so deal with this also.
     try:
         user_select = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.NAME, "j_username"))
         )
     finally:
-        print("Loaded page: {}, logging in...".format(driver.title))
+        logger.debug("Loaded page: {}, logging in...".format(driver.title))
         login(driver, config)
 
     try:
@@ -85,17 +137,14 @@ def obtain_cookies_from_cirrus_manually():
             EC.presence_of_element_located((By.ID, "topMenuForm:j_idt17_button"))
         )
     except TimeoutException:
-        print("Timeout occured, attempting relogin")
+        logger.error("Timeout occurred, attempting relogin")
         login(driver, config)
     finally:
-        print("Found user dropdown select: {}".format(user_select.text))
+        logger.debug("Found user dropdown select: {}".format(user_select.text))
         try:
             user_select.click()
         except ElementClickInterceptedException as err:
-            print("There is a popup blocking the button press")
-            # alert_obj = driver.switch_to.alert
-            # alert_obj.accept()
-            # div id j_idt10:j_idt11
+            logger.error("There is a popup blocking the button press, attempting to overcome")
 
             alert_div = driver.find_element_by_css_selector('div[id*="j_idt10:j_idt11"]')
             if alert_div:
@@ -103,33 +152,33 @@ def obtain_cookies_from_cirrus_manually():
                 alert_close = driver.find_element_by_css_selector('a[class*="ui-dialog-titlebar-icon ui-dialog-titlebar-close ui-corner-all"]')
                 alert_close.click()
             else:
-                print("Failed to find div popup blocking click")
+                logger.error("Failed to find div popup blocking click")
             driver.find_element_by_id("topMenuForm:j_idt17_button").click()
 
-    print("Attempting to change user")
+    logger.info("Attempting to change user")
     dropdown_menu = driver.find_element_by_id("topMenuForm:j_idt17_menu")
     if dropdown_menu:
         super_user_link = dropdown_menu.find_element_by_css_selector('a[class*="ui-menuitem-link ui-corner-all"]')
-        print("Found link with text: [{}]".format(super_user_link.text))
+        logger.debug("Found link with text: [{}]".format(super_user_link.text))
         super_user_link_by_text = driver.find_element(By.LINK_TEXT, "Switch to Super")
-        print(super_user_link_by_text)
+        logger.debug(super_user_link_by_text)
         if super_user_link_by_text:
             super_user_link_by_text.click()
         else:
-            print("Failed to find super user link", file=sys.stderr)
+            logger.error("Failed to find super user link")
 
         elements = dropdown_menu.find_elements(By.TAG_NAME, 'a')
         for e in elements:
-            print("Found anchor {} with text: [{}]".format(e.id, get_children_text(e)))
+            logger.debug("Found anchor {} with text: [{}]".format(e.id, get_children_text(e)))
     else:
-        print("Failed to find drop down menu", file=sys.stderr)
+        logger.error("Failed to find drop down menu")
 
-    print(driver.current_url)
+    logger.debug("Cirrus URL now set to:".format(driver.current_url))
+    logger.debug("Sleeping for 5 seconds")
+    time.sleep(5)
     cirrus_super_user_cookie = "; ".join(["{}={}".format(cookie.get("name"), cookie.get("value")) for cookie in driver.get_cookies()])
-    print(cirrus_super_user_cookie)
+    logger.debug("Obtained the Cirrus cookie: {}".format(cirrus_super_user_cookie))
     write_cookies_to_file_cache(cirrus_super_user_cookie)
-    # get_configuration_dict()[CIRRUS_COOKIE] = cirrus_super_user_cookie
-    time.sleep(10)
     driver.close()
 
 

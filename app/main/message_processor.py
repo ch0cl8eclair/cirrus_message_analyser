@@ -295,3 +295,9 @@ class MessageProcessor:
     def merge_message_status_with_algo_results(self, message_status_map, algorithm_results_map):
         message_status_map.update(algorithm_results_map)
         return message_status_map
+
+    def is_non_http_request(self, cli_dict):
+        function_to_call = cli_dict.get(FUNCTION)
+        if function_to_call in [LIST_RULES, CLEAR_CACHE]:
+            return True
+        return False

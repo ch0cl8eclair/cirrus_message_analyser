@@ -27,5 +27,7 @@
       "url": "https://cirrusconnect.eu.f4f.com/cirrus-connect/rest/workbench/transform/search",
       "data_dict": { "current-only": true, "source": "", "destination": "", "type": ""}
     }
-  ]
+  ],
+  "chrome-driver-folder": "chromedriver83_win32",
+  "cirrus_connect_web_url": "https://cirrusconnect.eu.f4f.com/cirrus-connect/"
 }

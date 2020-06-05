@@ -1,6 +1,7 @@
 import os
 
-from main.config.constants import CREDENTIALS, RULES
+from main.config.constants import CREDENTIALS, RULES, CHROME_DRIVER_FOLDER, PASSWORD, USERNAME, CIRRUS_USERNAME, \
+    CIRRUS_PASSWORD
 from main.utils.utils import parse_json_from_file
 
 CONFIGURATION_FILE = "resources/configuration.json"
@@ -8,8 +9,9 @@ CREDENTIALS_FILE   = "resources/credentials.json"
 RULES_FILE         = "resources/rules.json"
 LOGGING_CONFIG_FILE = os.path.join(os.path.dirname(__file__), '../../resources/logging_config.ini')
 
-# MAP env variable to conf variable key
-environment_vars_map = {"ADM_USERNAME": "", "ADM_PASSWORD": "", "NEXUS_USERNAME": "", "NEXUS_PASSWORD": ""}
+# MAP env variable to conf variable key, just a change of case currently
+environment_vars_map = {CHROME_DRIVER_FOLDER.upper(): CHROME_DRIVER_FOLDER}
+environment_credentials_vars_map = {CIRRUS_USERNAME: USERNAME, CIRRUS_PASSWORD: PASSWORD}
 
 
 class Borg:
@@ -43,28 +45,19 @@ def read_configuration_file_into_map():
 
 def read_environment_variables(main_config):
     """Overwrite configuration file values with those from environment"""
+    # Read generic config
     for env_var, conf_var in environment_vars_map.items():
         env_value = os.environ.get(env_var)
         if env_value is not None:
             main_config[conf_var] = env_value
+    # Read credential specific variables
+    for env_var, conf_var in environment_credentials_vars_map.items():
+        env_value = os.environ.get(env_var)
+        if env_value is not None:
+            main_config[CREDENTIALS][conf_var] = env_value
 
 
 def get_configuration_dict():
     main_config = read_configuration_file_into_map()
     read_environment_variables(main_config)
-    #main_config["agx_extended_recommendations"] = AGX_ALL_RECOMMENDATIONS
     return main_config
-
-
-def main():
-    print("testing configuration.py")
-    c = ConfigSingleton(get_configuration_dict())
-    d = ConfigSingleton()
-
-    grant_type = d.get('agx.auth.grant.type')
-    print(grant_type)
-    print("Done")
-
-
-if __name__ == '__main__':
-    main()
