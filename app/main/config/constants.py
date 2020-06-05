@@ -26,7 +26,9 @@ DATA_DICT = "data_dict"
 MSG_UID = "msg_uid"
 
 USERNAME = "username"
+CIRRUS_USERNAME = "CIRRUS_USERNAME"
 PASSWORD = "password"
+CIRRUS_PASSWORD = "CIRRUS_PASSWORD"
 
 FUNCTION = 'function'
 RULE = 'rule'
@@ -54,6 +56,9 @@ PAYLOAD = "payload"
 
 MESSAGE_STATUS = "message-status"
 UNIQUE_ID = "unique-id"
+
+CHROME_DRIVER_FOLDER = "chrome-driver-folder"
+CIRRUS_CONNECT_WEB_URL = "cirrus_connect_web_url"
 
 
 class DataType(Enum):
