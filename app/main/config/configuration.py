@@ -30,6 +30,9 @@ class ConfigSingleton(Borg):
     def get(self, key):
         return self._shared_state[key]
 
+    def has_key(self, key):
+        return key in self._shared_state
+
     def set(self, key, value):
         self._shared_state[key] = value
 

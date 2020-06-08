@@ -3,9 +3,9 @@ import unittest
 
 from main.algorithms.xpath_lookup import get_final_tag_from_xpath, lookup_xpath, lookup_xpath_get_node, get_xpath_text
 
-PAYLOAD_FILE = os.path.join(os.path.dirname(__file__), '../../test/resources/yara_payload_5.xml')
-XSL_FILE = os.path.join(os.path.dirname(__file__), '../../test/resources/ZESADV_F4Fv5Movement.xsl')
-IDOC_PAYLOAD_FILE = os.path.join(os.path.dirname(__file__), '../../test/resources/yara_payload_1.xml')
+PAYLOAD_FILE = os.path.join(os.path.dirname(__file__), './resources/yara_payload_5.xml')
+XSL_FILE = os.path.join(os.path.dirname(__file__), './resources/ZESADV_F4Fv5Movement.xsl')
+IDOC_PAYLOAD_FILE = os.path.join(os.path.dirname(__file__), './resources/yara_payload_1.xml')
 
 
 class XPathTest(unittest.TestCase):
@@ -39,7 +39,7 @@ class XPathTest(unittest.TestCase):
             xsl_str = f.read()
         lookup = lookup_xpath_get_node(xsl_str, "LineComponent/Product/Quantity")
         self.assertIsNotNone(lookup)
-        print(lookup)
+        # print(lookup)
 
     def test_idoc_xpath_lookup(self):
         with open(IDOC_PAYLOAD_FILE) as f:

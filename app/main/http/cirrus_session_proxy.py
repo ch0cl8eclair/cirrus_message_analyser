@@ -1,21 +1,20 @@
-from selenium import webdriver
-from selenium.common.exceptions import ElementClickInterceptedException, TimeoutException
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-
-from main.config.configuration import ConfigSingleton, get_configuration_dict
-from main.config.constants import CREDENTIALS, USERNAME, PASSWORD, CIRRUS_COOKIE, CACHED_COOKIE_FILE, \
-    CHROME_DRIVER_FOLDER, CIRRUS_CONNECT_WEB_URL
-import time
-import sys
+import logging
 import os
 import pathlib
-from main.config.configuration import ConfigSingleton, LOGGING_CONFIG_FILE
-import logging
+import time
 from logging.config import fileConfig
 
+from selenium import webdriver
+from selenium.common.exceptions import ElementClickInterceptedException, TimeoutException
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
+
+from main.config.configuration import ConfigSingleton, LOGGING_CONFIG_FILE
+from main.config.configuration import get_configuration_dict
+from main.config.constants import CREDENTIALS, USERNAME, PASSWORD, CHROME_DRIVER_FOLDER, CIRRUS_CONNECT_WEB_URL, \
+    CACHED_COOKIE, CACHE_REF, MIN_30
 from main.utils.utils import error_and_exit
 
 fileConfig(LOGGING_CONFIG_FILE)
@@ -55,22 +54,16 @@ def get_children_text(tag):
     return original_text
 
 
-def write_cookies_to_file_cache(cookies_str):
-    with open(CACHED_COOKIE_FILE, "w") as file1:
-        file1.write(cookies_str)
+def write_cookies_to_file_cache(config, cookies_str):
+    config.get(CACHE_REF).set(CACHED_COOKIE, cookies_str, expire=MIN_30)
 
 
-def read_cookies_file():
-    with open(CACHED_COOKIE_FILE, "r") as file1:
-        return file1.read()
+def read_cookies_file(config):
+    return config.get(CACHE_REF)[CACHED_COOKIE]
 
 
-def cookies_file_exists():
-    return os.path.isfile(CACHED_COOKIE_FILE)
-
-
-def delete_cookies_file():
-    os.remove(CACHED_COOKIE_FILE)
+def cookies_file_exists(config):
+    return CACHED_COOKIE in config.get(CACHE_REF)
 
 
 def chromedriver_file_exists(folder):
@@ -178,7 +171,7 @@ def obtain_cookies_from_cirrus_manually():
     time.sleep(5)
     cirrus_super_user_cookie = "; ".join(["{}={}".format(cookie.get("name"), cookie.get("value")) for cookie in driver.get_cookies()])
     logger.debug("Obtained the Cirrus cookie: {}".format(cirrus_super_user_cookie))
-    write_cookies_to_file_cache(cirrus_super_user_cookie)
+    write_cookies_to_file_cache(config, cirrus_super_user_cookie)
     driver.close()
 
 

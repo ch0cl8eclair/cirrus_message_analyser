@@ -1,11 +1,11 @@
-from main.config.constants import OUTPUT, JSON, CSV, TABLE, DataType, NAME
-from tabulate import tabulate
 import json
-from main.config.configuration import ConfigSingleton, LOGGING_CONFIG_FILE
 import logging
 from logging.config import fileConfig
 
-from main.model.transform_stages import TransformStage
+from tabulate import tabulate
+
+from main.config.configuration import LOGGING_CONFIG_FILE
+from main.config.constants import OUTPUT, JSON, CSV, TABLE, DataType, NAME, TransformStage
 
 fileConfig(LOGGING_CONFIG_FILE)
 logger = logging.getLogger('main')
@@ -67,8 +67,6 @@ class Formatter:
         elif data_type == DataType.cirrus_metadata:
             defined_fields = []
         elif data_type == DataType.cirrus_payloads:
-            # ,["payload"],["displayPayload"]
-            # return [,,["id"],["unique-id"],,,,["compressed"],["content-type"],["content-encoding"],["exception"]]
             defined_fields = [["tracking-point"], ["source"], ["sub-source"], ["destination"], ["sub-destination"], ["type"], ["subType"], ["sequence-number"], ["insertDate"]]
         elif data_type == DataType.cirrus_events:
             defined_fields = [["insertDate"], ["id"], ["unique-id"], ["source-adapter"], ["event-id"], ["event-name"], ["event-date"], ["event-sucess"], ["end-point"], ["sequence-number"], ["workflow-id"]]
@@ -80,7 +78,8 @@ class Formatter:
             defined_fields = []
         return self._get_defined_fields_for_datatype(data, defined_fields) if defined_fields else []
 
-    def _get_field(self, data, fields):
+    @staticmethod
+    def _get_field(data, fields):
         """Given a data object and a list of fields, will perform the necessary gets to return the final field value"""
         iteration = 0
         for current_field in fields:
@@ -115,19 +114,9 @@ class DynamicFormatter(Formatter):
             if data_type == DataType.analysis_messages:
                 logger.debug("List of message statuses with algorithmic status results")
             super().format(data_type, data, options)
-    #
-    # def __flatten_data_with_dynamic_headings(self, data_type, data):
-    #     defined_fields = [[h] for h in self.__get_dynamic_headings(data_type)]
-    #     return self._get_defined_fields_for_datatype(data, defined_fields)
 
     def _get_dynamic_headings(self, data_type):
         if data_type == DataType.analysis_messages:
             headings = ["unique-id", "source", "destination", "type", "parent-id", "process-id", "business-id", "message-status"]
             headings.extend(self.algorithm_names)
             return headings
-
-    # def __get_algorithm_names(self, algorithm_result_map):
-    #     return list(algorithm_result_map.keys())
-    #
-    # def __print_algorithm_statuses(self, algorithm_result_map):
-    #     return [algorithm_result_map[column_name] for column_name in self.__get_algorithm_names(algorithm_result_map)]

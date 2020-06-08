@@ -3,22 +3,23 @@ from functools import reduce
 
 from main.cli.cli_parser import ANALYSE
 from main.config.constants import RULES, FUNCTION, OPTIONS, RULE, TIME, SEARCH_PARAMETERS, START_DATETIME, END_DATETIME, \
-    DataType, NAME, UID, MSG_UID, TYPE, DESTINATION, SOURCE, MESSAGE_ID, LIMIT, ALGORITHMS, MESSAGE_STATUS
+    DataType, NAME, UID, MSG_UID, MESSAGE_ID, LIMIT, ALGORITHMS, MESSAGE_STATUS, ALGORITHM_STATS, CACHE_REF, \
+    YARA_MOVEMENT_POST_JSON_ALGO
 from cache_to_disk import delete_old_disk_caches
 
 from main.formatter.formatter import Formatter, DynamicFormatter
 from main.http.cirrus_proxy import CirrusProxy, FailedToCommunicateWithCirrus
-from main.http.cirrus_session_proxy import cookies_file_exists, delete_cookies_file
 from main.model.enricher import MessageEnricher
-from main.model.message_model import Message, get_transform_search_parameters
-from main.model.transform_stages import TransformStagesAnalyser
+from main.model.message_model import Message
+from main.model.model_utils import get_transform_search_parameters, enrich_message_analysis_status_results, \
+    get_algorithm_results_per_message, prefix_message_id_to_lines
 from main.utils.utils import error_and_exit, calculate_start_and_end_times_from_duration, get_datetime_now_as_zulu, \
     validate_start_and_end_times
 
 from main.config.configuration import ConfigSingleton, LOGGING_CONFIG_FILE
 import logging
 from logging.config import fileConfig
-
+import importlib
 
 
 LIST_RULES = "list_rules"
@@ -31,9 +32,6 @@ LIST_MESSAGE_METADATA = "list_message_metadata"
 
 fileConfig(LOGGING_CONFIG_FILE)
 logger = logging.getLogger('main')
-
-YARA_MOVEMENT_POST_JSON_ALGO = "YaraMovementPostJson"
-ALGORITHM_STATS = "algorithm_stats"
 
 
 class MessageProcessor:
@@ -184,11 +182,14 @@ class MessageProcessor:
                     msg_model = Message()
                     msg_model.add_rule(cfg_rule)
                     msg_model.add_status(current_status)
-                    MessageEnricher(msg_model, self.cirrus_proxy).retrieve_data()
+                    # MessageEnricher(msg_model, self.cirrus_proxy).retrieve_data()
                     count = count + 1
                     self.__add_message_stats(msg_model)
-                    algorithm_results_map = self.run_algorithms(msg_model)
-                    self.__add_message_algo_stats(msg_model, algorithm_results_map)
+
+                    self.__process_algorithms_for_message(msg_model)
+                    # algorithm_results_map = self.run_algorithms(msg_model)
+
+                    # self.__add_message_algo_stats(msg_model, algorithm_results_map)
                 self.format_analysis(cfg_rule, format_options)
             else:
                 logger.error("Failed to retrieve any messages from search request to analyse")
@@ -196,10 +197,7 @@ class MessageProcessor:
             error_and_exit("Failed to retrieve messages for analysis command")
 
     def clear_cache(self):
-        # TODO might have to improve this
-        delete_old_disk_caches()
-        if cookies_file_exists():
-            delete_cookies_file()
+        self.configuration.get(CACHE_REF).clear()
 
     def __retrieve_valid_rule(self, cli_dict, mandatory_rule=True):
         # Ensure we have a rule
@@ -215,7 +213,8 @@ class MessageProcessor:
             logger.debug("No rule provided to search with")
         return configured_rule
 
-    def __validate_time_window(self, cli_dict, search_parameters):
+    @staticmethod
+    def __validate_time_window(cli_dict, search_parameters):
         # Choose time over start_datetime and end_datetime, where time is a single duration like day
         # that can be broken down into a start and end time pointer
         if cli_dict.get(TIME):
@@ -239,33 +238,11 @@ class MessageProcessor:
             search_parameters.update(time_params)
             logger.info("Adding time window to search of start-date: {}, end-date: {}".format(start_string, end_string))
 
-    def run_algorithms(self, msg_model):
-        """Runs all configured algorithms against the message data and returns a result map back"""
-        if msg_model and msg_model.has_rule:
-            if ALGORITHMS in msg_model.rule:
-                algo_result_map = {}
-                for algorithm in msg_model.rule.get(ALGORITHMS):
-                    logger.info("Attempting to run defined algo against msg {}".format(algorithm))
-                    if algorithm == YARA_MOVEMENT_POST_JSON_ALGO:
-                        if not msg_model.has_payloads or not msg_model.has_transforms:
-                            logger.error("Unable to run the defined algorithm as we are missing key msg data")
-                            continue
-                        else:
-                            stages_analyser = TransformStagesAnalyser(msg_model.payloads_list, msg_model.transforms_list, self.cirrus_proxy)
-                            result = stages_analyser.analyse()
-                            algo_result_map[algorithm] = result
-                            self.__add_custom_algo_stats(msg_model, stages_analyser.get_results_records())
-                    else:
-                        # TODO may still have to update algo_result_map here to ensure formatter doesn't break
-                        logger.error("The given algorithm is not supported yet")
-                return algo_result_map
-        return None
-
     def __add_message_stats(self, msg_model):
         self.statistics_map[msg_model.message_uid] = {MESSAGE_STATUS: msg_model.status_dict}
 
-    def __add_custom_algo_stats(self, msg_model, records):
-        self.statistics_map[msg_model.message_uid][YARA_MOVEMENT_POST_JSON_ALGO] = records
+    def __add_custom_algo_stats(self, msg_model, algorithm_name, records):
+        self.statistics_map[msg_model.message_uid][algorithm_name] = records
 
     def __add_message_algo_stats(self, msg_model, algorithm_results_map):
         self.statistics_map[msg_model.message_uid][ALGORITHM_STATS] = algorithm_results_map
@@ -273,31 +250,66 @@ class MessageProcessor:
     def format_analysis(self, rule, format_options):
         custom_formatter = DynamicFormatter()
 
+        # format out msg status details with algorithm result status columns
         algorithm_result_headings = [algorithm for algorithm in rule.get(ALGORITHMS)]
         custom_formatter.set_algorithm_names(algorithm_result_headings)
+        custom_formatter.format(DataType.analysis_messages, enrich_message_analysis_status_results(self.statistics_map), format_options)
 
-        # First print out the message statuses with algorithm results values ie booleans: T/F
-        custom_formatter.format(DataType.analysis_messages,
-        [self.merge_message_status_with_algo_results(self.statistics_map[message_id][MESSAGE_STATUS], self.statistics_map[message_id][ALGORITHM_STATS]) for message_id in self.statistics_map.keys()],
-                                format_options)
+        # Now check for algorithm specific results and print out
+        for message_id in self.statistics_map.keys():
+            for algorithm_name in algorithm_result_headings:
+                if algorithm_name in self.statistics_map[message_id]:
+                    self.__format_algorithm_results(algorithm_name, message_id, self.statistics_map[message_id][algorithm_name], custom_formatter, format_options)
 
-        # Next print out the yara algo field matching results across the transform stages
-        movements_data_enriched = [self.prefix_message_id_to_lines(message_id, self.statistics_map[message_id][YARA_MOVEMENT_POST_JSON_ALGO]) for message_id in self.statistics_map.keys()]
-        movements_data = reduce(operator.concat, movements_data_enriched)
-        custom_formatter.format(DataType.analysis_yara_movements, movements_data, format_options)
-
-
-    def prefix_message_id_to_lines(self, message_id, lines):
-        for x in lines:
-            x.insert(0, message_id)
-        return lines
-
-    def merge_message_status_with_algo_results(self, message_status_map, algorithm_results_map):
-        message_status_map.update(algorithm_results_map)
-        return message_status_map
-
-    def is_non_http_request(self, cli_dict):
+    @staticmethod
+    def is_non_http_request(cli_dict):
         function_to_call = cli_dict.get(FUNCTION)
         if function_to_call in [LIST_RULES, CLEAR_CACHE]:
             return True
         return False
+
+    def __process_algorithms_for_message(self, msg_model):
+        if msg_model and msg_model.has_rule:
+            if ALGORITHMS in msg_model.rule and msg_model.rule.get(ALGORITHMS) and isinstance(msg_model.rule.get(ALGORITHMS), list):
+                algorithm_results_map = {}
+                for algorithm_name in msg_model.rule.get(ALGORITHMS):
+                    logger.debug("Attempting to process algorithm: {} on current msg".format(algorithm_name))
+                    # find and instantiate class
+                    algorithm_instance = self.instantiate_algorithm_class(algorithm_name)
+                    if algorithm_instance:
+                        # process prerequisite data
+                        data_enricher = self.__get_algorithm_prerequisite_data(msg_model, algorithm_instance)
+                        algorithm_instance.set_data_enricher(data_enricher)
+                        # Run algorithm
+                        algo_success = algorithm_instance.analyse()
+                        algorithm_results_map[algorithm_name] = algo_success
+                        if algorithm_instance.has_analysis_data():
+                            self.__add_custom_algo_stats(msg_model, algorithm_name, algorithm_instance.get_analysis_data())
+                    else:
+                        logger.info("The specified algorithm could not be found: {}".format(algorithm_name))
+                self.__add_message_algo_stats(msg_model, algorithm_results_map)
+            else:
+                logger.info("Not algorithms defined to process against message id: {} and rule: {}".format(msg_model.message_uid, msg_model.rule[NAME]))
+
+    def __get_algorithm_prerequisite_data(self, msg_model, algorithm_instance):
+        data_set = algorithm_instance.get_data_prerequistites()
+        data_enricher = MessageEnricher(msg_model, self.cirrus_proxy)
+        if data_set:
+            data_enricher.retrieve_data(data_set)
+        return data_enricher
+
+    @staticmethod
+    def instantiate_algorithm_class(algorithm_name):
+        algorithm_module = importlib.import_module("main.algorithms.algorithms")
+        AlgoClass = getattr(algorithm_module, algorithm_name)
+        algorithm_instance = AlgoClass()
+        return algorithm_instance
+
+    def __format_algorithm_results(self, algorithm_name, message_id, algorithm_results_data, custom_formatter, format_options):
+        if algorithm_name == YARA_MOVEMENT_POST_JSON_ALGO:
+            # Next print out the yara algo field matching results across the transform stages
+            movements_data_enriched = get_algorithm_results_per_message(self.statistics_map, algorithm_name, prefix_message_id_to_lines)
+            movements_data = reduce(operator.concat, movements_data_enriched)
+            custom_formatter.format(DataType.analysis_yara_movements, movements_data, format_options)
+        else:
+            logger.error("Unable to format out algorithm results for : {}, please implement".format(algorithm_name))

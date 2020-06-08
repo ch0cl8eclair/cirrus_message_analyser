@@ -60,7 +60,23 @@ UNIQUE_ID = "unique-id"
 CHROME_DRIVER_FOLDER = "chrome-driver-folder"
 CIRRUS_CONNECT_WEB_URL = "cirrus_connect_web_url"
 
+PAYLOAD_INDEX = "payload-index"
+STEP = "step"
+# ROUTE = "ROUTE"
+# SEND = "SEND"
+YARA_MOVEMENT_POST_JSON_ALGO = "YaraMovementPostJson"
+ALGORITHM_STATS = "algorithm_stats"
 
+CACHE_REF = "cache-ref"
+CACHED_COOKIE = "cached-cookie"
+# Cache expire constants
+MIN_30 = 60 * 30
+HOUR_1 = 3600
+DAY_1 = HOUR_1 * 24
+WEEK = 7 * DAY_1
+
+
+# Declaring these enums here to avoid circular reference issues, that are such a pain
 class DataType(Enum):
     config_rule = 1
     cirrus_messages = 2
@@ -70,3 +86,18 @@ class DataType(Enum):
     cirrus_transforms = 6
     analysis_yara_movements = 7
     analysis_messages = 8
+
+
+class DataRequisites(Enum):
+    status = 0
+    payloads = 1
+    events = 2
+    metadata = 3
+    transforms = 4
+
+
+class TransformStage(Enum):
+    json_missing_fields = 0
+    v5_to_movement_xpaths = 1
+    idoc_to_f4fv5_xpaths = 2
+    idoc = 3

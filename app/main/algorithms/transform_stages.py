@@ -9,14 +9,11 @@ from main.config.configuration import ConfigSingleton, LOGGING_CONFIG_FILE
 import logging
 from logging.config import fileConfig
 
-from main.config.constants import NAME, TRACKING_POINT, URL, PAYLOAD
+from main.config.constants import NAME, TRACKING_POINT, URL, PAYLOAD, PAYLOAD_INDEX, STEP, TransformStage
 from main.model.model_utils import *
 
 fileConfig(LOGGING_CONFIG_FILE)
 logger = logging.getLogger('parser')
-
-PAYLOAD_INDEX = "payload-index"
-STEP = "step"
 
 
 class TransformStagesAnalyser:
@@ -232,10 +229,3 @@ class TransformStagesAnalyser:
 
     def get_results_records(self):
         return self.__restructure_column_data_to_rows(self.results_map)
-
-
-class TransformStage(Enum):
-    json_missing_fields = 0
-    v5_to_movement_xpaths = 1
-    idoc_to_f4fv5_xpaths = 2
-    idoc = 3

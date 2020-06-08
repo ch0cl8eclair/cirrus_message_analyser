@@ -2,14 +2,10 @@ import logging
 from logging.config import fileConfig
 
 from main.config.configuration import LOGGING_CONFIG_FILE
-from main.config.constants import MESSAGE_ID, SEARCH_PARAMETERS, TYPE, UNIQUE_ID
-from main.model.model_utils import *
+from main.config.constants import UNIQUE_ID, TYPE, SEARCH_PARAMETERS
 
 fileConfig(LOGGING_CONFIG_FILE)
 logger = logging.getLogger('main')
-
-ROUTE = "ROUTE"
-SEND = "SEND"
 
 
 class Message:
@@ -47,7 +43,7 @@ class Message:
 
     def add_transforms(self, transform_data):
         # filter transforms by message type, and movement search will return movement and movementCancellation
-        filter_type = self.__get_status_search_parameter()
+        filter_type = self.__get_msg_type_search_parameter()
         if filter_type:
             self.transforms_list = [transform for transform in transform_data if transform[TYPE] == "movement"]
         # Add all transforms if there is no filter defined
@@ -63,34 +59,33 @@ class Message:
     #     """This is only called when the user sets a uid from the cli"""
     #     self.message_uid = message_uid
 
-    def __get_status_search_parameter(self):
+    def __get_msg_type_search_parameter(self):
         if self.rule and self.rule.get(SEARCH_PARAMETERS) and TYPE in self.rule.get(SEARCH_PARAMETERS):
             return self.rule.get(SEARCH_PARAMETERS)[TYPE]
         return None
 
-    def __generate_transform_summary_lists(self):
-        """Generates the transform stage names as per payloads from the transforms list"""
-        if not self.has_transforms:
-            logger.error("No transforms found for message to generate transform steps")
-            return
-        summary_list = []
-        for current_transform in self.transforms_list:
-            parsing_in = False
-            summary_list.append(current_transform.get("transform-channel"))
-            prefix = current_transform.get("transform-name")
-            if prefix == "IN":
-                parsing_in = True
-            for current_step in current_transform.get("transform-steps"):
-                step_name = current_step.get("transform-step-name")
-                step_type = current_step.get("transform-step-type")
-                translated_type = translate_step_type_to_payload_type(step_type)
-                summary_list.append("{} - {}({})".format(translated_type, prefix, step_name))
-            if parsing_in:
-                summary_list.append(ROUTE)
-        summary_list.append(SEND)
-        self.transform_summary_stage_names = summary_list
-
-    def get_transform_stage_names(self):
-        # TODO need to use getattr
-        return self.transform_summary_stage_names if self.transform_summary_stage_names else None
-
+    # def __generate_transform_summary_lists(self):
+    #     """Generates the transform stage names as per payloads from the transforms list"""
+    #     if not self.has_transforms:
+    #         logger.error("No transforms found for message to generate transform steps")
+    #         return
+    #     summary_list = []
+    #     for current_transform in self.transforms_list:
+    #         parsing_in = False
+    #         summary_list.append(current_transform.get("transform-channel"))
+    #         prefix = current_transform.get("transform-name")
+    #         if prefix == "IN":
+    #             parsing_in = True
+    #         for current_step in current_transform.get("transform-steps"):
+    #             step_name = current_step.get("transform-step-name")
+    #             step_type = current_step.get("transform-step-type")
+    #             translated_type = translate_step_type_to_payload_type(step_type)
+    #             summary_list.append("{} - {}({})".format(translated_type, prefix, step_name))
+    #         if parsing_in:
+    #             summary_list.append(ROUTE)
+    #     summary_list.append(SEND)
+    #     self.transform_summary_stage_names = summary_list
+    #
+    # def get_transform_stage_names(self):
+    #     # TODO need to use getattr
+    #     return self.transform_summary_stage_names if self.transform_summary_stage_names else None
