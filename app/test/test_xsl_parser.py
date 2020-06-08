@@ -1,13 +1,13 @@
 import os
 import unittest
 
-from main.algorithms.xpath_lookup import lookup_xpath_get_node
 from main.algorithms.xsl_parser import XSLParser
 from main.config.configuration import ConfigSingleton, get_configuration_dict
 from main.http.cirrus_proxy import CirrusProxy
 
-JSON_MOVEMENT_XSL_FILE = os.path.join(os.path.dirname(__file__), '../resources/F4Fv5Movement_JSONMovementPost.xsl')
-XSL_FILE = os.path.join(os.path.dirname(__file__), '../../test/resources/ZESADV_F4Fv5Movement.xsl')
+JSON_MOVEMENT_XSL_FILE = os.path.join(os.path.dirname(__file__), './resources/F4Fv5Movement_JSONMovementPost.xsl')
+XSL_FILE = os.path.join(os.path.dirname(__file__), './resources/ZESADV_F4Fv5Movement.xsl')
+
 
 class XSLParserTest(unittest.TestCase):
 

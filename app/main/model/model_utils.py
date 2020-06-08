@@ -1,6 +1,10 @@
 import re
 
-from main.config.constants import TRACKING_POINT, SEARCH_PARAMETERS, TYPE, DESTINATION, SOURCE
+# Please keep this here as it is dynamically invoked
+from main.algorithms import payload_predicates
+from main.algorithms.payload_predicates import *
+from main.config.constants import TRACKING_POINT, SEARCH_PARAMETERS, TYPE, DESTINATION, SOURCE, MESSAGE_STATUS, \
+    ALGORITHM_STATS
 
 
 def translate_step_type_to_payload_type(step_type):
@@ -21,10 +25,10 @@ def is_valid_step_type(payload_transform_step_type, transform_step):
 
 def get_matching_transform_step(transforms, stage_type, transform_name, transform_step_name):
     for current_transform in transforms:
-        current_transform.get("transform-name") == transform_name
-        for current_step in current_transform.get("transform-steps"):
-            if current_step.get("transform-step-name") == transform_step_name and is_valid_step_type(stage_type, current_step):
-                return current_step
+        if current_transform.get("transform-name") == transform_name:
+            for current_step in current_transform.get("transform-steps"):
+                if current_step.get("transform-step-name") == transform_step_name and is_valid_step_type(stage_type, current_step):
+                    return current_step
     return None
 
 
@@ -54,6 +58,38 @@ def get_transform_search_parameters(cfg_rule):
     else:
         raise MissingConfigException("Failed to obtain search parameters to query Cirrus for transforms")
     return search_parameters
+
+
+def get_algorithm_results_per_message(statistics_map, algorithm_name):
+    return [statistics_map[message_id][algorithm_name] for message_id in statistics_map.keys() if algorithm_name in statistics_map[message_id]]
+
+
+def get_algorithm_results_per_message(statistics_map, algorithm_name, func_to_call):
+    return [func_to_call(message_id, statistics_map[message_id][algorithm_name]) for message_id in statistics_map.keys()]
+
+
+def prefix_message_id_to_lines(message_id, lines):
+    for x in lines:
+        x.insert(0, message_id)
+    return lines
+
+
+def merge_message_status_with_algo_results(message_status_map, algorithm_results_map):
+    message_status_map.update(algorithm_results_map)
+    return message_status_map
+
+
+def enrich_message_analysis_status_results(statistics_map):
+    return [merge_message_status_with_algo_results(statistics_map[message_id][MESSAGE_STATUS], statistics_map[message_id][ALGORITHM_STATS]) for message_id in statistics_map.keys()]
+
+
+def process_message_payloads(payloads_list, predicate_function):
+    method_to_call = getattr(payload_predicates, predicate_function)
+    if payloads_list:
+        for payload in payloads_list:
+            if method_to_call(payload):
+                return True
+    return False
 
 
 class InvalidStateException(Exception):

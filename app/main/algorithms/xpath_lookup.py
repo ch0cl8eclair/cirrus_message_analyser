@@ -1,11 +1,7 @@
 import os
 import re
-
 from lxml import etree
-
 from main.utils.utils import clear_quotes
-
-PAYLOAD_FILE = os.path.join(os.path.dirname(__file__), '../../test/resources/yara_payload_5.xml')
 
 from main.config.configuration import LOGGING_CONFIG_FILE
 import logging
@@ -96,6 +92,7 @@ def get_final_attribute_of_xpath(xpath_expression):
 
 
 def main():
+    PAYLOAD_FILE = os.path.join(os.path.dirname(__file__), '../../test/resources/yara_payload_5.xml')
     with open(PAYLOAD_FILE) as f:
         payload_str = f.read()
         # lookup = lookup_xpath(payload_str, "LineComponent/Product/Quantity[@Type='Ordered']")

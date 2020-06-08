@@ -1,10 +1,10 @@
-from main.config.constants import MESSAGE_ID, SEARCH_PARAMETERS, TYPE, DESTINATION, SOURCE
+from main.config.constants import MESSAGE_ID, SEARCH_PARAMETERS, TYPE, DESTINATION, SOURCE, DataRequisites
 
 from main.config.configuration import ConfigSingleton, LOGGING_CONFIG_FILE
 import logging
 from logging.config import fileConfig
 
-from main.model.model_utils import get_transform_search_parameters
+from main.model.model_utils import get_transform_search_parameters, InvalidStateException
 
 fileConfig(LOGGING_CONFIG_FILE)
 logger = logging.getLogger('main')
@@ -25,27 +25,26 @@ class MessageEnricher:
         self.message = message_model
         self.cirrus_proxy = cirrus_proxy
 
-    def __obtain_retrieve_flags_from_rule(self, rule):
-        # Hard coded for now but should be based on algorithm requirements
-        return {STATUS: True, EVENTS: False, TRANSFORMS: True, PAYLOADS: True, METADATA: False}
-
-    def retrieve_data(self):
-        flags_dict = self.__obtain_retrieve_flags_from_rule(self.message.rule)
-        if flags_dict[STATUS] and not self.message.has_status:
-            # retrieve status data for msg
-            self.__retrieve_message_status()
-        if flags_dict[EVENTS] and not self.message.has_events:
-            # retrieve events data for msg
-            self.__retrieve_message_events()
-        if flags_dict[PAYLOADS] and not self.message.has_payloads:
-            # retrieve payloads data for msg
-            self.__retrieve_message_payloads()
-        if flags_dict[TRANSFORMS] and not self.message.has_transforms:
-            # retrieve transforms for msg
-            self.__retrieve_message_transforms()
-        if flags_dict[METADATA] and not self.message.has_metadata:
-            # retrieve metadata for msg
-            self.__retrieve_message_metadata()
+    def retrieve_data(self, prerequisites_data_set):
+        """Retrieves the required prereq data for the current msg"""
+        for prereq in prerequisites_data_set:
+            if prereq == DataRequisites.status and not self.message.has_status:
+                # retrieve status data for msg
+                self.__retrieve_message_status()
+            elif prereq == DataRequisites.events and not self.message.has_events:
+                # retrieve events data for msg
+                self.__retrieve_message_events()
+            elif prereq == DataRequisites.payloads and not self.message.has_payloads:
+                # retrieve payloads data for msg
+                self.__retrieve_message_payloads()
+            elif prereq == DataRequisites.transforms and not self.message.has_transforms:
+                # retrieve transforms for msg
+                self.__retrieve_message_transforms()
+            elif prereq == DataRequisites.metadata and not self.message.has_metadata:
+                # retrieve metadata for msg
+                self.__retrieve_message_metadata()
+            else:
+                logger.error("Unsupported data prerequisite item: {}".format(prereq))
 
     def __retrieve_message_status(self):
         search_criteria = {MESSAGE_ID: self.get_message_id()}
