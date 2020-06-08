@@ -1,5 +1,5 @@
 beautifulsoup4==4.9.0
-cache-to-disk==0.0.4
+diskcache==4.1.0
 requests==2.23.0
 soupsieve==2.0
 tabulate==0.8.7

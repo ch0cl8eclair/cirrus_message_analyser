@@ -3,12 +3,12 @@ from functools import reduce
 
 from main.cli.cli_parser import ANALYSE
 from main.config.constants import RULES, FUNCTION, OPTIONS, RULE, TIME, SEARCH_PARAMETERS, START_DATETIME, END_DATETIME, \
-    DataType, NAME, UID, MSG_UID, MESSAGE_ID, LIMIT, ALGORITHMS, MESSAGE_STATUS, ALGORITHM_STATS
+    DataType, NAME, UID, MSG_UID, MESSAGE_ID, LIMIT, ALGORITHMS, MESSAGE_STATUS, ALGORITHM_STATS, CACHE_REF, \
+    YARA_MOVEMENT_POST_JSON_ALGO
 from cache_to_disk import delete_old_disk_caches
 
 from main.formatter.formatter import Formatter, DynamicFormatter
 from main.http.cirrus_proxy import CirrusProxy, FailedToCommunicateWithCirrus
-from main.http.cirrus_session_proxy import cookies_file_exists, delete_cookies_file
 from main.model.enricher import MessageEnricher
 from main.model.message_model import Message
 from main.model.model_utils import get_transform_search_parameters, enrich_message_analysis_status_results, \
@@ -197,10 +197,7 @@ class MessageProcessor:
             error_and_exit("Failed to retrieve messages for analysis command")
 
     def clear_cache(self):
-        # TODO might have to improve this
-        delete_old_disk_caches()
-        if cookies_file_exists():
-            delete_cookies_file()
+        self.configuration.get(CACHE_REF).clear()
 
     def __retrieve_valid_rule(self, cli_dict, mandatory_rule=True):
         # Ensure we have a rule

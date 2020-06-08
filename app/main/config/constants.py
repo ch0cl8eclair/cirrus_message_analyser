@@ -67,6 +67,14 @@ STEP = "step"
 YARA_MOVEMENT_POST_JSON_ALGO = "YaraMovementPostJson"
 ALGORITHM_STATS = "algorithm_stats"
 
+CACHE_REF = "cache-ref"
+CACHED_COOKIE = "cached-cookie"
+# Cache expire constants
+MIN_30 = 60 * 30
+HOUR_1 = 3600
+DAY_1 = HOUR_1 * 24
+WEEK = 7 * DAY_1
+
 
 # Declaring these enums here to avoid circular reference issues, that are such a pain
 class DataType(Enum):

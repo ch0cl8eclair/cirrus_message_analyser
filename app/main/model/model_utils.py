@@ -106,3 +106,11 @@ class MissingConfigException(Exception):
 
     def __str__(self):
         return "Missing data exception: {}".format(self.message)
+
+
+class CacheMissException(Exception):
+    def __init__(self, cache_key):
+        self.cache_key = cache_key
+
+    def __str__(self):
+        return "Failed to find key: {} in cache".format(self.cache_key)
