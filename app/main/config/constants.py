@@ -65,6 +65,8 @@ STEP = "step"
 # ROUTE = "ROUTE"
 # SEND = "SEND"
 YARA_MOVEMENT_POST_JSON_ALGO = "YaraMovementPostJson"
+HAS_EMPTY_FIELDS_FOR_PAYLOAD = "HasEmptyFieldsForPayload"
+HAS_MANDATORY_FIELDS_FOR_PAYLOAD = "HasMandatoryFieldsForPayload"
 ALGORITHM_STATS = "algorithm_stats"
 
 CACHE_REF = "cache-ref"
@@ -74,6 +76,16 @@ MIN_30 = 60 * 30
 HOUR_1 = 3600
 DAY_1 = HOUR_1 * 24
 WEEK = 7 * DAY_1
+
+FIELDS = "fields"
+LINES = "lines"
+DOCUMENT_LINES = "document_lines"
+HEADER_FIELDS = "header_fields"
+DOCUMENTS = "documents"
+INDEX = "index"
+DOCUMENTS = "documents"
+PAYLOAD_TRACKING_POINT = "payload-tracking-point"
+ARGUMENTS = "arguments"
 
 
 # Declaring these enums here to avoid circular reference issues, that are such a pain
@@ -86,6 +98,8 @@ class DataType(Enum):
     cirrus_transforms = 6
     analysis_yara_movements = 7
     analysis_messages = 8
+    empty_fields_for_payload = 9
+    mandatory_fields_for_payload = 10
 
 
 class DataRequisites(Enum):

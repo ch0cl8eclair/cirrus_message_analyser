@@ -4,6 +4,7 @@ from logging.config import fileConfig
 
 from tabulate import tabulate
 
+from main.algorithms.empty_fields import FlattenJsonOutputToCSV
 from main.config.configuration import LOGGING_CONFIG_FILE
 from main.config.constants import OUTPUT, JSON, CSV, TABLE, DataType, NAME, TransformStage
 
@@ -55,6 +56,10 @@ class Formatter:
             headings = [stage.name for stage in TransformStage]
             headings.insert(0, "unique-id")
             return headings
+        elif data_type == DataType.empty_fields_for_payload:
+            return FlattenJsonOutputToCSV.EMPTY_HEADINGS
+        elif data_type == DataType.mandatory_fields_for_payload:
+            return FlattenJsonOutputToCSV.MANDATORY_HEADINGS
         elif data_type == DataType.analysis_messages:
             return self._get_dynamic_headings(data_type)
         return None
@@ -99,6 +104,7 @@ class Formatter:
 
 
 class DynamicFormatter(Formatter):
+    """Used to output data that did not come from Cirrus, ie non JSON and possibly with dynamic headings"""
     def __init__(self):
         self.algorithm_names = []
 
@@ -106,17 +112,34 @@ class DynamicFormatter(Formatter):
         self.algorithm_names = algo_names_list
 
     def format(self, data_type, data, options):
-        # TODO check for JSON output and disable
-        if data_type in [DataType.analysis_yara_movements]:
-            logger.debug("List of yara message ")
-            self._format(data_type, data, options)
+        if data_type in [DataType.analysis_yara_movements, DataType.empty_fields_for_payload, DataType.mandatory_fields_for_payload]:
+            logger.debug("Handling custom algo formatting without flattening data")
+            self._format_data_via_conversion(data_type, data, options)
         else:
             if data_type == DataType.analysis_messages:
                 logger.debug("List of message statuses with algorithmic status results")
-            super().format(data_type, data, options)
+            self._format_data_via_conversion(data_type, data, options)
 
     def _get_dynamic_headings(self, data_type):
         if data_type == DataType.analysis_messages:
             headings = ["unique-id", "source", "destination", "type", "parent-id", "process-id", "business-id", "message-status"]
             headings.extend(self.algorithm_names)
             return headings
+        return None
+
+    def _format_data_via_conversion(self, data_type, data, options):
+        if options.get(OUTPUT) == JSON:
+            headings = self._get_headings(data_type)
+            json_data = self.convert_array_to_json(headings, data)
+            self._format(data_type, json_data, options)
+        else:
+            super().format(data_type, data, options)
+
+    def convert_array_to_json(self, headings, data_table):
+        output_rows = []
+        for row in data_table:
+            row_obj = {}
+            for heading, value in zip(headings, row):
+                row_obj[heading] = value
+            output_rows.append(row_obj)
+        return output_rows

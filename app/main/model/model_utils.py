@@ -50,6 +50,13 @@ def get_payload_index(stage_name, payloads_list):
     return -1
 
 
+def get_payload_data(stage_name, payloads_list):
+    for index, current_payload in enumerate(payloads_list):
+        if current_payload.get(TRACKING_POINT) == stage_name:
+            return current_payload.get(PAYLOAD)
+    return None
+
+
 def get_transform_search_parameters(cfg_rule):
     search_parameters = {}
     if cfg_rule and SEARCH_PARAMETERS in cfg_rule:
@@ -106,6 +113,14 @@ class MissingConfigException(Exception):
 
     def __str__(self):
         return "Missing data exception: {}".format(self.message)
+
+
+class InvalidConfigException(Exception):
+    def __init__(self, message):
+        self.message = message
+
+    def __str__(self):
+        return "Invalid config exception: {}".format(self.message)
 
 
 class CacheMissException(Exception):

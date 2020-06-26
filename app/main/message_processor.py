@@ -4,7 +4,7 @@ from functools import reduce
 from main.cli.cli_parser import ANALYSE
 from main.config.constants import RULES, FUNCTION, OPTIONS, RULE, TIME, SEARCH_PARAMETERS, START_DATETIME, END_DATETIME, \
     DataType, NAME, UID, MSG_UID, MESSAGE_ID, LIMIT, ALGORITHMS, MESSAGE_STATUS, ALGORITHM_STATS, CACHE_REF, \
-    YARA_MOVEMENT_POST_JSON_ALGO
+    YARA_MOVEMENT_POST_JSON_ALGO, HAS_EMPTY_FIELDS_FOR_PAYLOAD, ARGUMENTS, HAS_MANDATORY_FIELDS_FOR_PAYLOAD
 from cache_to_disk import delete_old_disk_caches
 
 from main.formatter.formatter import Formatter, DynamicFormatter
@@ -12,7 +12,7 @@ from main.http.cirrus_proxy import CirrusProxy, FailedToCommunicateWithCirrus
 from main.model.enricher import MessageEnricher
 from main.model.message_model import Message
 from main.model.model_utils import get_transform_search_parameters, enrich_message_analysis_status_results, \
-    get_algorithm_results_per_message, prefix_message_id_to_lines
+    get_algorithm_results_per_message, prefix_message_id_to_lines, InvalidConfigException
 from main.utils.utils import error_and_exit, calculate_start_and_end_times_from_duration, get_datetime_now_as_zulu, \
     validate_start_and_end_times
 
@@ -251,7 +251,7 @@ class MessageProcessor:
         custom_formatter = DynamicFormatter()
 
         # format out msg status details with algorithm result status columns
-        algorithm_result_headings = [algorithm for algorithm in rule.get(ALGORITHMS)]
+        algorithm_result_headings = [MessageProcessor.__get_algorithm_name(algorithm) for algorithm in rule.get(ALGORITHMS)]
         custom_formatter.set_algorithm_names(algorithm_result_headings)
         custom_formatter.format(DataType.analysis_messages, enrich_message_analysis_status_results(self.statistics_map), format_options)
 
@@ -260,6 +260,13 @@ class MessageProcessor:
             for algorithm_name in algorithm_result_headings:
                 if algorithm_name in self.statistics_map[message_id]:
                     self.__format_algorithm_results(algorithm_name, message_id, self.statistics_map[message_id][algorithm_name], custom_formatter, format_options)
+
+    @staticmethod
+    def __get_algorithm_name(algorithm):
+        if isinstance(algorithm, str):
+            return algorithm
+        elif isinstance(algorithm, dict):
+            return algorithm[NAME]
 
     @staticmethod
     def is_non_http_request(cli_dict):
@@ -272,10 +279,17 @@ class MessageProcessor:
         if msg_model and msg_model.has_rule:
             if ALGORITHMS in msg_model.rule and msg_model.rule.get(ALGORITHMS) and isinstance(msg_model.rule.get(ALGORITHMS), list):
                 algorithm_results_map = {}
-                for algorithm_name in msg_model.rule.get(ALGORITHMS):
+                for current_algorithm_config in msg_model.rule.get(ALGORITHMS):
+                    if isinstance(algorithm_name, str):
+                        # find and instantiate class
+                        algorithm_name = current_algorithm_config
+                        algorithm_instance = self.instantiate_algorithm_class(algorithm_name)
+                    elif isinstance(algorithm_name, dict):
+                        algorithm_name = current_algorithm_config[NAME]
+                        algorithm_instance = self.instantiate_algorithm_class(current_algorithm_config)
+                    else:
+                        raise InvalidConfigException("Algorithms for rules should be defined as a list of string names, or a list of objects")
                     logger.debug("Attempting to process algorithm: {} on current msg".format(algorithm_name))
-                    # find and instantiate class
-                    algorithm_instance = self.instantiate_algorithm_class(algorithm_name)
                     if algorithm_instance:
                         # process prerequisite data
                         data_enricher = self.__get_algorithm_prerequisite_data(msg_model, algorithm_instance)
@@ -299,11 +313,22 @@ class MessageProcessor:
         return data_enricher
 
     @staticmethod
-    def instantiate_algorithm_class(algorithm_name):
+    def __create_algo_instance(algorithm_name):
         algorithm_module = importlib.import_module("main.algorithms.algorithms")
         AlgoClass = getattr(algorithm_module, algorithm_name)
         algorithm_instance = AlgoClass()
         return algorithm_instance
+
+    @staticmethod
+    def instantiate_algorithm_class(algorithm_details):
+        if isinstance(algorithm_details, str):
+            return MessageProcessor.__create_algo_instance(algorithm_details)
+        elif isinstance(algorithm_details, dict):
+            defined_name = algorithm_details[NAME]
+            algorithm_instance = MessageProcessor.__create_algo_instance(defined_name)
+            if ARGUMENTS in algorithm_details:
+                algorithm_instance.set_parameters(algorithm_details[ARGUMENTS])
+            return algorithm_instance
 
     def __format_algorithm_results(self, algorithm_name, message_id, algorithm_results_data, custom_formatter, format_options):
         if algorithm_name == YARA_MOVEMENT_POST_JSON_ALGO:
@@ -311,5 +336,12 @@ class MessageProcessor:
             movements_data_enriched = get_algorithm_results_per_message(self.statistics_map, algorithm_name, prefix_message_id_to_lines)
             movements_data = reduce(operator.concat, movements_data_enriched)
             custom_formatter.format(DataType.analysis_yara_movements, movements_data, format_options)
+        if algorithm_name in [HAS_EMPTY_FIELDS_FOR_PAYLOAD, HAS_MANDATORY_FIELDS_FOR_PAYLOAD]:
+            field_algo_data_enriched = get_algorithm_results_per_message(self.statistics_map, algorithm_name, prefix_message_id_to_lines)
+            if algorithm_name == HAS_EMPTY_FIELDS_FOR_PAYLOAD:
+                datatype = DataType.empty_fields_for_payload
+            else:
+                datatype = DataType.mandatory_fields_for_payload
+            custom_formatter.format(datatype, field_algo_data_enriched, format_options)
         else:
             logger.error("Unable to format out algorithm results for : {}, please implement".format(algorithm_name))
