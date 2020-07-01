@@ -6,7 +6,13 @@ from tabulate import tabulate
 
 from main.algorithms.empty_fields import FlattenJsonOutputToCSV
 from main.config.configuration import LOGGING_CONFIG_FILE
-from main.config.constants import OUTPUT, JSON, CSV, TABLE, DataType, NAME, TransformStage
+from main.config.constants import OUTPUT, JSON, CSV, TABLE, DataType, NAME, TransformStage, QUIET, \
+    YARA_MOVEMENT_POST_JSON_ALGO, HAS_EMPTY_FIELDS_FOR_PAYLOAD, HAS_MANDATORY_FIELDS_FOR_PAYLOAD
+
+from main.model.model_utils import enrich_message_analysis_status_results, get_algorithm_results_per_message, \
+    prefix_message_id_to_lines, get_data_type_for_algorithm
+import operator
+from functools import reduce
 
 fileConfig(LOGGING_CONFIG_FILE)
 logger = logging.getLogger('main')
@@ -38,10 +44,13 @@ class Formatter:
     def _format_data_as_table(self, data_records, headings):
         message_logger.info(tabulate(data_records, headings, tablefmt="github"))
 
+    def _xstr(self, value):
+        return str(value) if not None else ""
+
     def _format_data_as_csv(self, data_records, headings):
         message_logger.info(", ".join(headings))
         for record in data_records:
-            message_logger.info(", ".join([str(elem) for elem in record]))
+            message_logger.info(", ".join([self._xstr(elem) for elem in record]))
 
     def _get_headings(self, data_type):
         if data_type == DataType.config_rule:
@@ -102,6 +111,10 @@ class Formatter:
         """To be implemented by subclasses"""
         return []
 
+    def print_algo_heading(self, algorithm_name, options):
+        if not options.get(QUIET):
+            message_logger.info(f"Algorithm: {algorithm_name} results:")
+
 
 class DynamicFormatter(Formatter):
     """Used to output data that did not come from Cirrus, ie non JSON and possibly with dynamic headings"""
@@ -116,8 +129,6 @@ class DynamicFormatter(Formatter):
             logger.debug("Handling custom algo formatting without flattening data")
             self._format_data_via_conversion(data_type, data, options)
         else:
-            if data_type == DataType.analysis_messages:
-                logger.debug("List of message statuses with algorithmic status results")
             self._format_data_via_conversion(data_type, data, options)
 
     def _get_dynamic_headings(self, data_type):
@@ -131,15 +142,63 @@ class DynamicFormatter(Formatter):
         if options.get(OUTPUT) == JSON:
             headings = self._get_headings(data_type)
             json_data = self.convert_array_to_json(headings, data)
-            self._format(data_type, json_data, options)
+            output_data = json_data
         else:
-            super().format(data_type, data, options)
+            output_data = data
+
+        if data_type == DataType.analysis_messages:
+            logger.debug("formatting list of message statuses with algorithmic status results")
+            # go through this path to add flattening of data
+            super().format(data_type, output_data, options)
+        else:
+            # avoid flattening
+            self._format(data_type, output_data, options)
 
     def convert_array_to_json(self, headings, data_table):
         output_rows = []
         for row in data_table:
-            row_obj = {}
-            for heading, value in zip(headings, row):
-                row_obj[heading] = value
-            output_rows.append(row_obj)
+            if isinstance(row, dict):
+                row_obj = {}
+                for k, v in row.items():
+                    if k in headings:
+                        row_obj[k] = v
+                output_rows.append(row_obj)
+            elif isinstance(row, list):
+                row_obj = {}
+                for heading, value in zip(headings, row):
+                    row_obj[heading] = value
+                output_rows.append(row_obj)
         return output_rows
+
+
+class AnalysisFormatter:
+    """Format out the analysis results, start with msg summary and following with algo custom output"""
+    def __init__(self, run_algorithm_names, algorithms_with_data, statistics_map, format_options):
+        self.custom_formatter = DynamicFormatter()
+        self.custom_formatter.set_algorithm_names(run_algorithm_names)
+        self.algorithms_with_data = algorithms_with_data
+        self.statistics_map = statistics_map
+        self.format_options = format_options
+
+    def format(self):
+        self.custom_formatter.format(DataType.analysis_messages, enrich_message_analysis_status_results(self.statistics_map), self.format_options)
+        # Now check for algorithm specific results and print out
+        for algorithm_name in self.algorithms_with_data:
+            self.__format_algorithm_results(algorithm_name, self.custom_formatter, self.format_options)
+
+    def __format_algorithm_results(self, algorithm_name, custom_formatter, format_options):
+        format_data_type = get_data_type_for_algorithm(algorithm_name)
+        if algorithm_name == YARA_MOVEMENT_POST_JSON_ALGO:
+            custom_formatter.print_algo_heading(algorithm_name, format_options)
+            # Next print out the yara algo field matching results across the transform stages
+            movements_data_enriched = get_algorithm_results_per_message(self.statistics_map, algorithm_name, prefix_message_id_to_lines)
+            movements_data = reduce(operator.concat, movements_data_enriched)
+            custom_formatter.format(format_data_type, movements_data, format_options)
+        elif algorithm_name in [HAS_EMPTY_FIELDS_FOR_PAYLOAD, HAS_MANDATORY_FIELDS_FOR_PAYLOAD]:
+            custom_formatter.print_algo_heading(algorithm_name, format_options)
+            field_algo_data_enriched = get_algorithm_results_per_message(self.statistics_map, algorithm_name, prefix_message_id_to_lines)
+            # reshape the list to a simple 2d array that can be uniformly formatted out
+            flattened_list_of_lines = reduce(operator.concat, field_algo_data_enriched)
+            custom_formatter.format(format_data_type, flattened_list_of_lines, format_options)
+        else:
+            logger.error("Unable to format out algorithm results for : {}, please implement".format(algorithm_name))

@@ -115,3 +115,6 @@ class TransformStage(Enum):
     v5_to_movement_xpaths = 1
     idoc_to_f4fv5_xpaths = 2
     idoc = 3
+
+
+algorithm_data_type_map = {YARA_MOVEMENT_POST_JSON_ALGO: DataType.analysis_yara_movements, HAS_EMPTY_FIELDS_FOR_PAYLOAD: DataType.empty_fields_for_payload, HAS_MANDATORY_FIELDS_FOR_PAYLOAD: DataType.mandatory_fields_for_payload}

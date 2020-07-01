@@ -5,8 +5,10 @@ from lxml import etree
 from lxml.etree import Element
 
 from main.config.configuration import LOGGING_CONFIG_FILE
-from main.config.constants import PAYLOAD, FIELDS, INDEX, DOCUMENT_LINES, HEADER_FIELDS, DOCUMENTS
+from main.config.constants import PAYLOAD, FIELDS, INDEX, DOCUMENT_LINES, HEADER_FIELDS, DOCUMENTS, MESSAGE_ID
 import json
+
+from main.model.model_utils import MissingPayloadException
 
 fileConfig(LOGGING_CONFIG_FILE)
 logger = logging.getLogger('parser')
@@ -44,12 +46,15 @@ class DocumentFieldsParser:
 
     def parse(self, payload_obj):
         logger.debug("Parsing document for type: {}".format(self.type))
-        payload_str = payload_obj.get(PAYLOAD)
-        try:
-            json_payload = json.loads(payload_str)
-            return self._parse_json_document(json_payload)
-        except ValueError as error:
-            return self._parse_xml_document(payload_str)
+        if payload_obj:
+            payload_str = payload_obj.get(PAYLOAD)
+            try:
+                json_payload = json.loads(payload_str)
+                return self._parse_json_document(json_payload)
+            except ValueError as error:
+                return self._parse_xml_document(payload_str)
+        else:
+            raise MissingPayloadException()
 
     def _field_predicate(self, field_value):
         """Have the subclass override this to perform the required field test"""
@@ -187,7 +192,9 @@ class DocumentFieldsParser:
 
     @staticmethod
     def format_as_csv(json_result):
-        return FlattenJsonOutputToCSV.convert(json_result)
+        if json_result:
+            return FlattenJsonOutputToCSV.convert(json_result)
+        return None
 
 
 class DocumentEmptyFieldsParser(DocumentFieldsParser):
@@ -297,8 +304,9 @@ class EmptyFieldParseType(Enum):
 
 class FlattenJsonOutputToCSV:
     """Convert the generated JSON structure into a 2d array"""
-    EMPTY_HEADINGS = ["document_index", "empty_header_fields", "line_index", "empty_line_fields"]
-    MANDATORY_HEADINGS = ["document_index", "mandatory_header_fields", "line_index", "mandatory_line_fields"]
+    EMPTY_HEADINGS = [MESSAGE_ID, "document_index", "empty_header_fields", "line_index", "empty_line_fields"]
+    MANDATORY_HEADINGS = [MESSAGE_ID, "document_index", "mandatory_header_fields", "line_index", "mandatory_line_fields"]
+
     @staticmethod
     def convert(json_output):
         output_lines = []
@@ -311,6 +319,6 @@ class FlattenJsonOutputToCSV:
                 if DOCUMENT_LINES in document and len(document[DOCUMENT_LINES]):
                     for line in document[DOCUMENT_LINES]:
                         line_fields_str = ', '.join(line[FIELDS]) if line[FIELDS] else ""
-                        output_lines.append([None, None, line[INDEX], line_fields_str])
+                        output_lines.append([document[INDEX], None, line[INDEX], line_fields_str])
             return output_lines
         return None
