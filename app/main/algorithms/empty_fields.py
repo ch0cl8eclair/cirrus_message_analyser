@@ -322,3 +322,18 @@ class FlattenJsonOutputToCSV:
                         output_lines.append([document[INDEX], None, line[INDEX], line_fields_str])
             return output_lines
         return None
+
+    @staticmethod
+    def to_set(json_output):
+        output_fields_set = set()
+        if json_output and DOCUMENTS in json_output:
+            for document in json_output[DOCUMENTS]:
+                # add the header line to the output
+                if document[HEADER_FIELDS]:
+                    output_fields_set.update(document[HEADER_FIELDS])
+                # now add any document lines
+                if DOCUMENT_LINES in document and len(document[DOCUMENT_LINES]):
+                    for line in document[DOCUMENT_LINES]:
+                        if line[FIELDS]:
+                            output_fields_set.update(line[FIELDS])
+        return output_fields_set

@@ -60,7 +60,6 @@ class DocumentEmptyFieldsParserTest(AbstractFieldsParserTest):
             "type": "lines"
         }
         result_map = self.run_sut(parameters_map, JSON_PAYLOAD_FILE)
-        print(result_map)
         self.assertIsNotNone(result_map)
         self.assertHasNoHeader(result_map)
         self.assertHasLineValues('[{"index": 1, "fields": ["order_qty", "order_uom"]}]', result_map)
@@ -267,7 +266,7 @@ class DocumentEmptyFieldsParserTest(AbstractFieldsParserTest):
         csv_2d_array = DocumentEmptyFieldsParser.format_as_csv(result_map)
         self.assertEqual(2, len(csv_2d_array))
         self.assertEqual([1, 'shipto_address_4, order_date', None, None], csv_2d_array[0])
-        self.assertEqual([None, None, 1, 'order_qty, order_uom'], csv_2d_array[1])
+        self.assertEqual([1, None, 1, 'order_qty, order_uom'], csv_2d_array[1])
 
     def test_read_xml(self):
         payload_str = read_payload_file(XML_MOVEMENT_FILE)

@@ -1,7 +1,8 @@
 from collections.abc import Set
 
 from main.algorithms.empty_fields import DocumentEmptyFieldsParser, DocumentMandatoryFieldsParser
-from main.algorithms.transform_stages import TransformStagesAnalyser, get_payload_object, MissingPayloadException
+from main.algorithms.transform_stages import TransformStagesAnalyser, get_payload_object, MissingPayloadException, \
+    ConfigurableTransformStagesAnalyser
 from main.config.constants import DataRequisites, PAYLOAD_TRACKING_POINT
 from main.model.model_utils import process_message_payloads
 
@@ -34,10 +35,14 @@ class AbstractAlgorithm:
 
 class TransformBacktraceFields(AbstractAlgorithm):
     def get_data_prerequistites(self):
-        return frozenset([DataRequisites.status, DataRequisites.payloads, DataRequisites.transforms])
+        return frozenset([DataRequisites.payloads, DataRequisites.transforms])
+
+    def set_parameters(self, parameters_dict):
+        self.configuration_parameters = parameters_dict
 
     def set_data_enricher(self, data_enricher):
-        self.transform_analyser = TransformStagesAnalyser(data_enricher.message.payloads_list, data_enricher.message.transforms_list, data_enricher.cirrus_proxy)
+        self.transform_analyser = ConfigurableTransformStagesAnalyser(data_enricher.message.payloads_list, data_enricher.message.transforms_list, data_enricher.cirrus_proxy,
+                                                          self.configuration_parameters)
 
     def analyse(self):
         return self.transform_analyser.analyse()
@@ -51,7 +56,7 @@ class TransformBacktraceFields(AbstractAlgorithm):
 
 class YaraMovementPostJson(AbstractAlgorithm):
     def get_data_prerequistites(self):
-        return frozenset([DataRequisites.status, DataRequisites.payloads, DataRequisites.transforms])
+        return frozenset([DataRequisites.payloads, DataRequisites.transforms])
 
     def set_data_enricher(self, data_enricher):
         self.transform_analyser = TransformStagesAnalyser(data_enricher.message.payloads_list, data_enricher.message.transforms_list, data_enricher.cirrus_proxy)
