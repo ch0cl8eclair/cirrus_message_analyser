@@ -52,7 +52,7 @@ class MessageEnricher:
         if result and isinstance(result, list) and len(result) >= 1:
             self.message.add_status(result[0])
             return
-        logger.warn("Failed to set message status with message model for: {}".format(self.get_message_id()))
+        logger.warning("Failed to set message status with message model for: {}".format(self.get_message_id()))
 
     def __retrieve_message_events(self):
         result = self.cirrus_proxy.get_events_for_message(self.get_message_id())

@@ -8,5 +8,77 @@
       "message-status": "FAILED"
     },
     "algorithms": ["YaraMovementPostJson"]
+  },
+  {
+    "name": "YARA_JSON_POSTS",
+    "search_parameters": {
+      "source": "uk0000000037",
+      "destination": "uk0000000036",
+      "type": "movement",
+      "message-status": "FAILED"
+    },
+    "algorithms": ["HasJsonPostErrorPayload"]
+  },
+  {
+    "name": "MANDATORY_YARA_MOVEMENTS",
+    "search_parameters": {
+      "source": "uk0000000037",
+      "destination": "uk0000000036",
+      "type": "movement",
+      "message-status": "FAILED"
+    },
+    "algorithms": [
+      {
+        "name": "HasMandatoryFieldsForPayload",
+        "arguments": {
+            "payload-tracking-point": "PAYLOAD [movement JSON POST request]",
+            "document_header_root": "movements",
+            "document_lines_root": "movement_lines",
+            "document_lines_mandatory_fields": ["order_qty", "order_uom"],
+            "field_type": "lines"
+        }
+      }]
+  },
+  {
+    "name": "EMPTY_YARA_MOVEMENTS",
+    "search_parameters": {
+      "source": "uk0000000037",
+      "destination": "uk0000000036",
+      "type": "movement",
+      "message-status": "FAILED"
+    },
+    "algorithms": [
+      {
+        "name": "HasEmptyFieldsForPayload",
+        "arguments": {
+          "payload-tracking-point": "PAYLOAD [movement JSON POST request]",
+          "document_header_root": "movements",
+          "document_lines_root": "movement_lines",
+          "field_type": "lines"
+        }
+      }]
+  },
+  {
+    "name": "MANDATORY_YARA_BACKTRACE_MOVEMENTS",
+    "search_parameters": {
+      "source": "uk0000000037",
+      "destination": "uk0000000036",
+      "type": "movement",
+      "message-status": "FAILED"
+    },
+    "algorithms": [
+      {
+        "name": "TransformBacktraceFields",
+        "arguments": {
+          "field_scan_type": "mandatory",
+          "document_header_root": "movements",
+          "document_lines_root": "movement_lines",
+          "include_transforms": ["JSON Transform"],
+          "exclude_transforms": ["Extension Replacement", "OUT"],
+          "include_payloads": ["PAYLOAD [movement JSON POST request]"],
+          "document_lines_mandatory_fields": ["order_qty", "order_uom"],
+          "field_type": "lines"
+        }
+      }]
   }
 ]

@@ -4,7 +4,7 @@ import re
 from main.algorithms import payload_predicates
 from main.algorithms.payload_predicates import *
 from main.config.constants import TRACKING_POINT, SEARCH_PARAMETERS, TYPE, DESTINATION, SOURCE, MESSAGE_STATUS, \
-    ALGORITHM_STATS
+    ALGORITHM_STATS, MESSAGE_ID, algorithm_data_type_map
 
 
 def translate_step_type_to_payload_type(step_type):
@@ -50,6 +50,13 @@ def get_payload_index(stage_name, payloads_list):
     return -1
 
 
+def get_payload_object(stage_name, payloads_list):
+    for index, current_payload in enumerate(payloads_list):
+        if current_payload.get(TRACKING_POINT) == stage_name:
+            return current_payload
+    return None
+
+
 def get_transform_search_parameters(cfg_rule):
     search_parameters = {}
     if cfg_rule and SEARCH_PARAMETERS in cfg_rule:
@@ -65,12 +72,12 @@ def get_algorithm_results_per_message(statistics_map, algorithm_name):
 
 
 def get_algorithm_results_per_message(statistics_map, algorithm_name, func_to_call):
-    return [func_to_call(message_id, statistics_map[message_id][algorithm_name]) for message_id in statistics_map.keys()]
+    return [func_to_call(message_id, statistics_map[message_id][algorithm_name]) for message_id in statistics_map.keys() if algorithm_name in statistics_map[message_id]]
 
 
 def prefix_message_id_to_lines(message_id, lines):
-    for x in lines:
-        x.insert(0, message_id)
+    if isinstance(lines, list):
+        return [[message_id, *x] for x in lines]
     return lines
 
 
@@ -92,6 +99,18 @@ def process_message_payloads(payloads_list, predicate_function):
     return False
 
 
+def get_data_type_for_algorithm(algorithm_name):
+    return algorithm_data_type_map[algorithm_name]
+
+
+# Note this is only for custom data algos
+def get_algorithm_name_from_data_type(data_type):
+    for k, v in algorithm_data_type_map.items():
+        if v == data_type:
+            return k
+    return None
+
+
 class InvalidStateException(Exception):
     def __init__(self, message):
         self.message = message
@@ -108,9 +127,24 @@ class MissingConfigException(Exception):
         return "Missing data exception: {}".format(self.message)
 
 
+class InvalidConfigException(Exception):
+    def __init__(self, message):
+        self.message = message
+
+    def __str__(self):
+        return "Invalid config exception: {}".format(self.message)
+
+
 class CacheMissException(Exception):
     def __init__(self, cache_key):
         self.cache_key = cache_key
 
     def __str__(self):
         return "Failed to find key: {} in cache".format(self.cache_key)
+
+
+class MissingPayloadException(Exception):
+    def __str__(self):
+        return "Failed to parse payload for message as it was None"
+
+
