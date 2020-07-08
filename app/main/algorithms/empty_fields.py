@@ -5,7 +5,8 @@ from lxml import etree
 from lxml.etree import Element
 
 from main.config.configuration import LOGGING_CONFIG_FILE
-from main.config.constants import PAYLOAD, FIELDS, INDEX, DOCUMENT_LINES, HEADER_FIELDS, DOCUMENTS, MESSAGE_ID
+from main.config.constants import PAYLOAD, FIELDS, INDEX, DOCUMENT_LINES, HEADER_FIELDS, DOCUMENTS, MESSAGE_ID, \
+    FIELD_TYPE
 import json
 
 from main.model.model_utils import MissingPayloadException
@@ -42,7 +43,7 @@ class DocumentFieldsParser:
         self.header_exclude_fields  = kwargs["header_exclude_fields"] if "header_exclude_fields" in kwargs else None
         self.line_include_fields = kwargs["line_include_fields"] if "line_include_fields" in kwargs else None
         self.line_exclude_fields = kwargs["line_exclude_fields"] if "line_exclude_fields" in kwargs else None
-        self.type = EmptyFieldParseType.from_str(kwargs["type"]) if "type" in kwargs else EmptyFieldParseType.all
+        self.type = EmptyFieldParseType.from_str(kwargs[FIELD_TYPE]) if FIELD_TYPE in kwargs else EmptyFieldParseType.all
 
     def parse(self, payload_obj):
         logger.debug("Parsing document for type: {}".format(self.type))

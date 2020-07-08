@@ -1,12 +1,14 @@
 import operator
 from functools import reduce
 
-from main.algorithms.empty_fields import DocumentEmptyFieldsParser, FlattenJsonOutputToCSV
+from main.algorithms.empty_fields import DocumentEmptyFieldsParser, FlattenJsonOutputToCSV, \
+    DocumentMandatoryFieldsParser
 from main.algorithms.payload_operations import get_missing_movement_line_fields_for_payload
 from main.algorithms.xpath_lookup import get_xpath_text
 from main.algorithms.xsl_parser import XSLParser
 
-from main.config.constants import NAME, TRACKING_POINT, URL, PAYLOAD, PAYLOAD_INDEX, STEP, TransformStage
+from main.config.constants import NAME, TRACKING_POINT, URL, PAYLOAD, PAYLOAD_INDEX, STEP, TransformStage, QUIET, \
+    VERBOSE
 from main.model.model_utils import *
 
 TRANSFORM_STEP_TYPE = "transform-step-type"
@@ -60,8 +62,8 @@ class TransformStagesAnalyser:
         self.payloads = payloads
         self.results_map = {}
         self.xsl_parser = XSLParser(cirrus_proxy)
-        self._is_verbose = True
-        self._is_quiet = False
+        self._is_verbose = filter_options_dict.get(VERBOSE) if filter_options_dict else True
+        self._is_quiet = filter_options_dict.get(QUIET) if filter_options_dict else True
         self.parse_filter_options(filter_options_dict)
         self._create_transform_to_payload_mapping_structure(payloads, transforms)
 
@@ -316,7 +318,12 @@ class ConfigurableTransformStagesAnalyser(TransformStagesAnalyser):
         self.include_payloads = ConfigurableTransformStagesAnalyser._get_filter_option(filter_options_dict, "include_payloads")
         self.exclude_payloads = ConfigurableTransformStagesAnalyser._get_filter_option(filter_options_dict, "exclude_payloads")
 
-        self.fields_parser = DocumentEmptyFieldsParser(filter_options_dict)
+        # determine the field type parse and create
+        field_scan_type = ConfigurableTransformStagesAnalyser._get_filter_option(filter_options_dict, "field_scan_type")
+        if field_scan_type and field_scan_type.lower() == "mandatory":
+            self.fields_parser = DocumentMandatoryFieldsParser(filter_options_dict)
+        else:
+            self.fields_parser = DocumentEmptyFieldsParser(filter_options_dict)
 
     @staticmethod
     def _get_filter_option(filter_options_dict, parameter_name):
@@ -550,7 +557,7 @@ class ConfigurableTransformStagesAnalyser(TransformStagesAnalyser):
 
     # Overridden
     def get_results_records(self):
-        print("Processed stage names: " + ', '.join(self.processed_transform_stage_names))
+        logger.info("Processed stage names: " + ', '.join(self.processed_transform_stage_names))
         return self._restructure_column_data_to_rows_by_index(self.results_map)
 
     def __add_processed_transform_stage(self, index, stage_name):

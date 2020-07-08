@@ -4,6 +4,7 @@ import json
 from lxml import etree
 
 from main.algorithms.empty_fields import DocumentEmptyFieldsParser
+from main.config.constants import FIELD_TYPE
 from test.test_utils import read_payload_file
 
 XML_MOVEMENT_FILE = os.path.join(os.path.dirname(__file__), './resources/yara_payload_6.xml')
@@ -57,7 +58,7 @@ class DocumentEmptyFieldsParserTest(AbstractFieldsParserTest):
         parameters_map = {
             "document_header_root": "movements",
             "document_lines_root": "movement_lines",
-            "type": "lines"
+            FIELD_TYPE: "lines"
         }
         result_map = self.run_sut(parameters_map, JSON_PAYLOAD_FILE)
         self.assertIsNotNone(result_map)
@@ -68,7 +69,7 @@ class DocumentEmptyFieldsParserTest(AbstractFieldsParserTest):
         parameters_map = {
             "document_header_root": "movements",
             "document_lines_root": "movement_lines",
-            "type": "all"
+            FIELD_TYPE: "all"
         }
         result_map = self.run_sut(parameters_map, JSON_PAYLOAD_FILE)
         self.assertIsNotNone(result_map)
@@ -81,7 +82,7 @@ class DocumentEmptyFieldsParserTest(AbstractFieldsParserTest):
             "document_lines_root": "movement_lines",
             "header_exclude_fields": ["non_existing"],
             "line_exclude_fields": ["non_existing"],
-            "type": "all"
+            FIELD_TYPE: "all"
         }
         result_map = self.run_sut(parameters_map, JSON_PAYLOAD_FILE)
         self.assertIsNotNone(result_map)
@@ -92,7 +93,7 @@ class DocumentEmptyFieldsParserTest(AbstractFieldsParserTest):
         parameters_map = {
             "document_header_root": "movements",
             "document_lines_root": "movement_lines",
-            "type": "header"
+            FIELD_TYPE: "header"
         }
         result_map = self.run_sut(parameters_map, JSON_PAYLOAD_FILE)
         self.assertIsNotNone(result_map)
@@ -105,7 +106,7 @@ class DocumentEmptyFieldsParserTest(AbstractFieldsParserTest):
             "document_lines_root": "movement_lines",
             "header_include_fields": ["shipto_address_4"],
             "line_include_fields": ["order_uom"],
-            "type": "all"
+            FIELD_TYPE: "all"
         }
         result_map = self.run_sut(parameters_map, JSON_PAYLOAD_FILE)
         self.assertIsNotNone(result_map)
@@ -118,7 +119,7 @@ class DocumentEmptyFieldsParserTest(AbstractFieldsParserTest):
             "document_lines_root": "movement_lines",
             "header_include_fields": ["shipto_address_4", "movement_lines"],
             "line_include_fields": ["order_uom"],
-            "type": "all"
+            FIELD_TYPE: "all"
         }
         result_map = self.run_sut(parameters_map, JSON_PAYLOAD_FILE)
         self.assertIsNotNone(result_map)
@@ -131,7 +132,7 @@ class DocumentEmptyFieldsParserTest(AbstractFieldsParserTest):
             "document_lines_root": "movement_lines",
             "header_exclude_fields": ["order_date"],
             "line_exclude_fields": ["order_qty"],
-            "type": "all"
+            FIELD_TYPE: "all"
         }
         result_map = self.run_sut(parameters_map, JSON_PAYLOAD_FILE)
         self.assertIsNotNone(result_map)
@@ -146,7 +147,7 @@ class DocumentEmptyFieldsParserTest(AbstractFieldsParserTest):
             "line_include_fields": ["order_qty"],
             "header_exclude_fields": ["order_date"],
             "line_exclude_fields": ["order_uom"],
-            "type": "all"
+            FIELD_TYPE: "all"
         }
         result_map = self.run_sut(parameters_map, JSON_PAYLOAD_FILE)
         self.assertIsNotNone(result_map)
@@ -157,7 +158,7 @@ class DocumentEmptyFieldsParserTest(AbstractFieldsParserTest):
         parameters_map = {
             "document_header_root": "movements",
             "document_lines_root": "movement_lines",
-            "type": "lines"
+            FIELD_TYPE: "lines"
         }
         result_map = self.run_sut(parameters_map, XML_MOVEMENT_FILE)
         self.assertIsNotNone(result_map)
@@ -168,7 +169,7 @@ class DocumentEmptyFieldsParserTest(AbstractFieldsParserTest):
         parameters_map = {
             "document_header_root": "movements",
             "document_lines_root": "movement_lines",
-            "type": "all"
+            FIELD_TYPE: "all"
         }
         result_map = self.run_sut(parameters_map, XML_MOVEMENT_FILE)
         self.assertIsNotNone(result_map)
@@ -181,7 +182,7 @@ class DocumentEmptyFieldsParserTest(AbstractFieldsParserTest):
             "document_lines_root": "movement_lines",
             "header_exclude_fields": ["non_existing"],
             "line_exclude_fields": ["non_existing"],
-            "type": "all"
+            FIELD_TYPE: "all"
         }
         result_map = self.run_sut(parameters_map, JSON_PAYLOAD_FILE)
         self.assertIsNotNone(result_map)
@@ -192,7 +193,7 @@ class DocumentEmptyFieldsParserTest(AbstractFieldsParserTest):
         parameters_map = {
             "document_header_root": "movements",
             "document_lines_root": "movement_lines",
-            "type": "header"
+            FIELD_TYPE: "header"
         }
         result_map = self.run_sut(parameters_map, JSON_PAYLOAD_FILE)
         self.assertIsNotNone(result_map)
@@ -205,7 +206,7 @@ class DocumentEmptyFieldsParserTest(AbstractFieldsParserTest):
             "document_lines_root": "movement_lines",
             "header_include_fields": ["shipto_address_4"],
             "line_include_fields": ["order_uom"],
-            "type": "all"
+            FIELD_TYPE: "all"
         }
         result_map = self.run_sut(parameters_map, JSON_PAYLOAD_FILE)
         self.assertIsNotNone(result_map)
@@ -218,7 +219,7 @@ class DocumentEmptyFieldsParserTest(AbstractFieldsParserTest):
             "document_lines_root": "movement_lines",
             "header_include_fields": ["shipto_address_4", "movement_lines"],
             "line_include_fields": ["order_uom"],
-            "type": "all"
+            FIELD_TYPE: "all"
         }
         result_map = self.run_sut(parameters_map, JSON_PAYLOAD_FILE)
         self.assertIsNotNone(result_map)
@@ -231,7 +232,7 @@ class DocumentEmptyFieldsParserTest(AbstractFieldsParserTest):
             "document_lines_root": "movement_lines",
             "header_exclude_fields": ["order_date"],
             "line_exclude_fields": ["order_qty"],
-            "type": "all"
+            FIELD_TYPE: "all"
         }
         result_map = self.run_sut(parameters_map, JSON_PAYLOAD_FILE)
         self.assertIsNotNone(result_map)
@@ -246,7 +247,7 @@ class DocumentEmptyFieldsParserTest(AbstractFieldsParserTest):
             "line_include_fields": ["order_qty"],
             "header_exclude_fields": ["order_date"],
             "line_exclude_fields": ["order_uom"],
-            "type": "all"
+            FIELD_TYPE: "all"
         }
         result_map = self.run_sut(parameters_map, JSON_PAYLOAD_FILE)
         self.assertIsNotNone(result_map)
@@ -257,7 +258,7 @@ class DocumentEmptyFieldsParserTest(AbstractFieldsParserTest):
         parameters_map = {
             "document_header_root": "movements",
             "document_lines_root": "movement_lines",
-            "type": "all"
+            FIELD_TYPE: "all"
         }
         result_map = self.run_sut(parameters_map, JSON_PAYLOAD_FILE)
         self.assertIsNotNone(result_map)

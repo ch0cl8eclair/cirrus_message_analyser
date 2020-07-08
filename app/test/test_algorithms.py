@@ -3,7 +3,7 @@ import unittest
 import importlib
 import json
 from main.cli.cli_parser import parse_command_line_statement
-from main.config.constants import DataRequisites, NAME
+from main.config.constants import DataRequisites, NAME, FIELD_TYPE
 from main.model.message_model import Message
 from main.model.model_utils import MissingConfigException
 from test.test_utils import read_payload_file
@@ -58,6 +58,28 @@ class AbstractAlgorithmTest(unittest.TestCase):
         return data_enricher
 
 
+class HasJsonPostErrorPayloadTest(AbstractAlgorithmTest):
+    def get_algorithm_name(self):
+        return "HasJsonPostErrorPayload"
+
+    def test_get_data_prerequistites(self):
+        sut = self.createSUT()
+        expected_set = frozenset([DataRequisites.payloads])
+        self.assertEqual(expected_set, sut.get_data_prerequistites())
+
+    def test_analysis_data(self):
+        sut = self.createSUT()
+        self.assertEqual(False, sut.has_analysis_data())
+
+    def test_algorithm_processing(self):
+        sut = self.createSUT()
+        sut.set_data_enricher(self.mock_data_enricher())
+        bool_result = sut.analyse()
+        results = sut.get_analysis_data()
+        self.assertTrue(bool_result)
+        self.assertIsNone(results)
+
+
 class HasEmptyFieldsForPayloadTest(AbstractAlgorithmTest):
     def get_algorithm_name(self):
         return "HasEmptyFieldsForPayload"
@@ -76,7 +98,7 @@ class HasEmptyFieldsForPayloadTest(AbstractAlgorithmTest):
             "payload-tracking-point": "PAYLOAD [movement JSON POST request]",
             "document_header_root": "movements",
             "document_lines_root": "movement_lines",
-            "type": "lines"
+            FIELD_TYPE: "lines"
         }
         return parameters_map
 
@@ -122,7 +144,7 @@ class HasMandatoryFieldsForPayloadTest(AbstractAlgorithmTest):
             "document_header_root": "movements",
             "document_lines_root": "movement_lines",
             "document_lines_mandatory_fields": ['order_qty', 'order_uom'],
-            "type": "lines"
+            FIELD_TYPE: "lines"
         }
         return parameters_map
 
@@ -190,7 +212,6 @@ class YaraMovementPostJsonTest(AbstractAlgorithmTest):
         results = sut.get_analysis_data()
         self.assertFalse(bool_result)
         self.assertIsNotNone(results)
-        print(results)
         self.assertEqual(2, len(results))
         self.assertEqual(4, len(results[0]))
 
@@ -239,23 +260,34 @@ class TransformBacktraceFieldsTest(AbstractAlgorithmTest):
         sut = self.createSUT()
         self.assertEqual(True, sut.has_analysis_data())
 
-    def _create_algorithm_parameters(self):
+    def _create_algorithm_parameters_empty_check(self):
         parameters_map = {
             "include_transforms": ["JSON Transform"],
             "exclude_transforms": ["Extension Replacement", "OUT"],
             "include_payloads": ["PAYLOAD [movement JSON POST request]"],
             "document_header_root": "movements",
             "document_lines_root": "movement_lines",
-            "document_lines_mandatory_fields": ['order_qty', 'order_uom'],
-            "type": "lines"
+            FIELD_TYPE: "lines"
         }
         return parameters_map
 
-    def test_algorithm_processing(self):
+    def _create_algorithm_parameters_mandatory_check(self):
+        parameters_map = {
+            "field_scan_type": "mandatory",
+            "include_transforms": ["JSON Transform"],
+            "exclude_transforms": ["Extension Replacement", "OUT"],
+            "include_payloads": [],
+            "document_header_root": "movements",
+            "document_lines_root": "movement_lines",
+            "document_lines_mandatory_fields": ['order_qty', 'order_uom'],
+            FIELD_TYPE: "lines"
+        }
+        return parameters_map
+
+    def test_algorithm_processing_1(self):
         sut = self.createSUT()
-        sut.set_parameters(self._create_algorithm_parameters())
+        sut.set_parameters(self._create_algorithm_parameters_empty_check())
         sut.set_data_enricher(self.mock_data_enricher())
-        print(sut.transform_analyser.transform_stages)
         transform_stage_names = [x[NAME] for x in sut.transform_analyser.transform_stages]
         expected_names = ["IN", "TRANSFORM - Movement - COP(IDOC to F4Fv5 XML)", "TRANSFORM - Movement - COP(Convert V5 To Movement JSON)", "TRANSFORM - Movement - COP(JSON Transform)", "PAYLOAD [movement JSON POST request]"]
         self.assertEqual(expected_names, transform_stage_names)
@@ -264,7 +296,31 @@ class TransformBacktraceFieldsTest(AbstractAlgorithmTest):
         results = sut.get_analysis_data()
         self.assertFalse(bool_result)
         self.assertIsNotNone(results)
-        print(results)
+        self.assertEqual(2, len(results))
+        self.assertEqual(4, len(results[0]))
+
+        self.assertEqual("order_qty", results[0][0])
+        self.assertEqual('LineComponent/Product/Quantity[@Type=\'Ordered\']', results[0][1])
+        self.assertEqual("Z1EDP00/WMENG", results[0][2])
+        self.assertEqual("", results[0][3])
+
+        self.assertEqual("order_uom", results[1][0])
+        self.assertEqual('LineComponent/Product/Quantity[@Type=\'Ordered\']/@UnitOfMeasure', results[1][1])
+        self.assertEqual("Z1EDP00/VRKME", results[1][2])
+        self.assertEqual("", results[1][3])
+
+    def test_algorithm_processing_2(self):
+        sut = self.createSUT()
+        sut.set_parameters(self._create_algorithm_parameters_mandatory_check())
+        sut.set_data_enricher(self.mock_data_enricher())
+        transform_stage_names = [x[NAME] for x in sut.transform_analyser.transform_stages]
+        expected_names = ["IN", "TRANSFORM - Movement - COP(IDOC to F4Fv5 XML)", "TRANSFORM - Movement - COP(Convert V5 To Movement JSON)", "TRANSFORM - Movement - COP(JSON Transform)"]
+        self.assertEqual(expected_names, transform_stage_names)
+
+        bool_result = sut.analyse()
+        results = sut.get_analysis_data()
+        self.assertFalse(bool_result)
+        self.assertIsNotNone(results)
         self.assertEqual(2, len(results))
         self.assertEqual(4, len(results[0]))
 

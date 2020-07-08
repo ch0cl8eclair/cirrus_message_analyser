@@ -103,6 +103,14 @@ def get_data_type_for_algorithm(algorithm_name):
     return algorithm_data_type_map[algorithm_name]
 
 
+# Note this is only for custom data algos
+def get_algorithm_name_from_data_type(data_type):
+    for k, v in algorithm_data_type_map.items():
+        if v == data_type:
+            return k
+    return None
+
+
 class InvalidStateException(Exception):
     def __init__(self, message):
         self.message = message

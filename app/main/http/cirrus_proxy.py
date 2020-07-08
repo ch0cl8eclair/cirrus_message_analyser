@@ -83,7 +83,7 @@ class CirrusProxy:
         if response.status_code != requests.codes["ok"]:
             logger.error("Failed get webpage: {}, status code: {}".format(url, response.status_code))
             raise FailedToCommunicateWithCirrus(url, response.status_code)
-        logger.debug("Response from server is: %s", response.text)
+        logger.debug("FIELD_TYPE is: %s", response.text)
         self.__store_cache(cache_key, response.json(), DAY_1)
         return response.json()
 
@@ -103,7 +103,7 @@ class CirrusProxy:
             if response.text:
                 logger.error("Error response from server is: {}".format(response.json()))
             raise FailedToCommunicateWithCirrus(url, response.status_code)
-        logger.debug("Response from server is: %s", response.text)
+        logger.debug("Response from server is: {}".format(response.text))
         self.__store_cache(cache_key, response.json(), cache_expiry)
         return response.json()
 

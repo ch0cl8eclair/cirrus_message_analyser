@@ -166,7 +166,7 @@ def obtain_cookies_from_cirrus_manually():
     else:
         logger.error("Failed to find drop down menu")
 
-    logger.debug("Cirrus URL now set to:".format(driver.current_url))
+    logger.debug("Cirrus URL now set to: {}".format(driver.current_url))
     logger.debug("Sleeping for 5 seconds")
     time.sleep(5)
     cirrus_super_user_cookie = "; ".join(["{}={}".format(cookie.get("name"), cookie.get("value")) for cookie in driver.get_cookies()])

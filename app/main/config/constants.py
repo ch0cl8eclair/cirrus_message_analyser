@@ -67,6 +67,7 @@ STEP = "step"
 YARA_MOVEMENT_POST_JSON_ALGO = "YaraMovementPostJson"
 HAS_EMPTY_FIELDS_FOR_PAYLOAD = "HasEmptyFieldsForPayload"
 HAS_MANDATORY_FIELDS_FOR_PAYLOAD = "HasMandatoryFieldsForPayload"
+TRANSFORM_BACKTRACE_FIELDS = "TransformBacktraceFields"
 ALGORITHM_STATS = "algorithm_stats"
 
 CACHE_REF = "cache-ref"
@@ -83,9 +84,10 @@ DOCUMENT_LINES = "document_lines"
 HEADER_FIELDS = "header_fields"
 DOCUMENTS = "documents"
 INDEX = "index"
-DOCUMENTS = "documents"
 PAYLOAD_TRACKING_POINT = "payload-tracking-point"
 ARGUMENTS = "arguments"
+
+FIELD_TYPE = "field_type"
 
 
 # Declaring these enums here to avoid circular reference issues, that are such a pain
@@ -100,6 +102,7 @@ class DataType(Enum):
     analysis_messages = 8
     empty_fields_for_payload = 9
     mandatory_fields_for_payload = 10
+    transform_backtrace_fields = 11
 
 
 class DataRequisites(Enum):
@@ -117,4 +120,10 @@ class TransformStage(Enum):
     idoc = 3
 
 
-algorithm_data_type_map = {YARA_MOVEMENT_POST_JSON_ALGO: DataType.analysis_yara_movements, HAS_EMPTY_FIELDS_FOR_PAYLOAD: DataType.empty_fields_for_payload, HAS_MANDATORY_FIELDS_FOR_PAYLOAD: DataType.mandatory_fields_for_payload}
+# This is for custom data algorithms
+algorithm_data_type_map = {
+    YARA_MOVEMENT_POST_JSON_ALGO: DataType.analysis_yara_movements,
+    HAS_EMPTY_FIELDS_FOR_PAYLOAD: DataType.empty_fields_for_payload,
+    HAS_MANDATORY_FIELDS_FOR_PAYLOAD: DataType.mandatory_fields_for_payload,
+    TRANSFORM_BACKTRACE_FIELDS: DataType.transform_backtrace_fields
+}

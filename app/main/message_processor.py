@@ -1,7 +1,8 @@
 from main.cli.cli_parser import ANALYSE
 from main.config.constants import RULES, FUNCTION, OPTIONS, RULE, TIME, SEARCH_PARAMETERS, START_DATETIME, END_DATETIME, \
     DataType, NAME, UID, MSG_UID, MESSAGE_ID, LIMIT, ALGORITHMS, MESSAGE_STATUS, ALGORITHM_STATS, CACHE_REF, \
-    YARA_MOVEMENT_POST_JSON_ALGO, HAS_EMPTY_FIELDS_FOR_PAYLOAD, ARGUMENTS, HAS_MANDATORY_FIELDS_FOR_PAYLOAD
+    YARA_MOVEMENT_POST_JSON_ALGO, HAS_EMPTY_FIELDS_FOR_PAYLOAD, ARGUMENTS, HAS_MANDATORY_FIELDS_FOR_PAYLOAD, \
+    TRANSFORM_BACKTRACE_FIELDS
 
 from main.formatter.formatter import Formatter, AnalysisFormatter
 from main.http.cirrus_proxy import CirrusProxy, FailedToCommunicateWithCirrus
@@ -40,6 +41,7 @@ class MessageProcessor:
         self.statistics_map = {} # Message id indexed
         self.run_algorithm_names = set() # set of all algorithms run
         self.algorithm_name_with_data = set() # set if all algorithms that have their own data run
+        self.custom_algorithm_data = {} # Used to hold custom headings and other algorithm items
 
     def action_cli_request(self, cli_dict):
         """Take the cli arguments, validate them further and action them"""
@@ -180,7 +182,7 @@ class MessageProcessor:
                     msg_model.add_status(current_status)
                     count = count + 1
                     self.__add_message_stats(msg_model)
-                    self.__process_algorithms_for_message(msg_model)
+                    self.__process_algorithms_for_message(msg_model, format_options)
                 self.__format_analysis(cfg_rule, format_options)
             else:
                 logger.error("Failed to retrieve any messages from search request to analyse")
@@ -200,7 +202,7 @@ class MessageProcessor:
         configured_rule = self.__fetch_rule_config(cli_dict.get(RULE))
         # Ensure configured rule is valid
         if not configured_rule and mandatory_rule:
-            error_and_exit("The specified rule: {} is not found in the rules.json config file, please specify a valid rule name" % cli_dict.get(RULE))
+            error_and_exit("The specified rule: {} is not found in the rules.json config file, please specify a valid rule name".format(cli_dict.get(RULE)))
         if configured_rule:
             logger.info("Attempting search with provided rule: {}".format(cli_dict.get(RULE)))
         else:
@@ -235,16 +237,19 @@ class MessageProcessor:
     def __add_message_stats(self, msg_model):
         self.statistics_map[msg_model.message_uid] = {MESSAGE_STATUS: msg_model.status_dict}
 
-    def __add_custom_algo_stats(self, msg_model, algorithm_name, records):
+    def __add_custom_algo_stats(self, msg_model, algorithm_name, algorithm_intance):
         self.algorithm_name_with_data.add(algorithm_name)
+        records = algorithm_intance.get_analysis_data()
         # Only add data if we have it
         if records:
             self.statistics_map[msg_model.message_uid][algorithm_name] = records
+            if algorithm_name in [YARA_MOVEMENT_POST_JSON_ALGO, TRANSFORM_BACKTRACE_FIELDS]:
+                self.custom_algorithm_data[algorithm_name] = algorithm_intance.transform_analyser.processed_transform_stage_names
 
     def __add_message_algo_stats(self, msg_model, algorithm_results_map):
         self.statistics_map[msg_model.message_uid][ALGORITHM_STATS] = algorithm_results_map
 
-    def __process_algorithms_for_message(self, msg_model):
+    def __process_algorithms_for_message(self, msg_model, format_options):
         if msg_model and msg_model.has_rule:
             if ALGORITHMS in msg_model.rule and msg_model.rule.get(ALGORITHMS) and isinstance(msg_model.rule.get(ALGORITHMS), list):
                 algorithm_results_map = {}
@@ -252,10 +257,10 @@ class MessageProcessor:
                     if isinstance(current_algorithm_config, str):
                         # find and instantiate class
                         algorithm_name = current_algorithm_config
-                        algorithm_instance = self.instantiate_algorithm_class(algorithm_name)
+                        algorithm_instance = self.instantiate_algorithm_class(algorithm_name, format_options)
                     elif isinstance(current_algorithm_config, dict):
                         algorithm_name = current_algorithm_config[NAME]
-                        algorithm_instance = self.instantiate_algorithm_class(current_algorithm_config)
+                        algorithm_instance = self.instantiate_algorithm_class(current_algorithm_config, format_options)
                     else:
                         raise InvalidConfigException("Algorithms for rules should be defined as a list of string names, or a list of objects")
                     logger.debug("Attempting to process algorithm: {} on current msg: {}".format(algorithm_name, msg_model.message_uid))
@@ -268,7 +273,7 @@ class MessageProcessor:
                         algo_success = algorithm_instance.analyse()
                         algorithm_results_map[algorithm_name] = algo_success
                         if algorithm_instance.has_analysis_data():
-                            self.__add_custom_algo_stats(msg_model, algorithm_name, algorithm_instance.get_analysis_data())
+                            self.__add_custom_algo_stats(msg_model, algorithm_name, algorithm_instance)
                     else:
                         logger.info("The specified algorithm could not be found: {}".format(algorithm_name))
                 self.__add_message_algo_stats(msg_model, algorithm_results_map)
@@ -276,7 +281,7 @@ class MessageProcessor:
                 logger.info("Not algorithms defined to process against message id: {} and rule: {}".format(msg_model.message_uid, msg_model.rule[NAME]))
 
     def __format_analysis(self, rule, format_options):
-        results_formatter = AnalysisFormatter(self.run_algorithm_names, self.algorithm_name_with_data, self.statistics_map, format_options)
+        results_formatter = AnalysisFormatter(self.run_algorithm_names, self.algorithm_name_with_data, self.statistics_map, self.custom_algorithm_data, format_options)
         results_formatter.format()
 
     @staticmethod
@@ -308,13 +313,13 @@ class MessageProcessor:
         return algorithm_instance
 
     @staticmethod
-    def instantiate_algorithm_class(algorithm_details):
+    def instantiate_algorithm_class(algorithm_details, format_options):
         if isinstance(algorithm_details, str):
             return MessageProcessor.__create_algo_instance(algorithm_details)
         elif isinstance(algorithm_details, dict):
             defined_name = algorithm_details[NAME]
             algorithm_instance = MessageProcessor.__create_algo_instance(defined_name)
             if ARGUMENTS in algorithm_details:
-                algorithm_instance.set_parameters(algorithm_details[ARGUMENTS])
+                algorithm_instance.set_parameters(algorithm_details[ARGUMENTS], format_options)
             return algorithm_instance
 
