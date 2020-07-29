@@ -21,6 +21,36 @@ message_logger = logging.getLogger('message')
 
 
 class Formatter:
+    """Formats out collected data to the specified output format: JSON|CSV|TABLE"""
+
+    def format_message_model(self, message_model, options):
+        if message_model:
+            if message_model.has_status:
+                message_logger.info("Message summary:")
+                self.format(DataType.cirrus_messages, [message_model.status_dict], options)
+            if message_model.has_message_details:
+                message_logger.info("Message summary:")
+                self.format(DataType.cirrus_messages, [message_model.message_details], options)
+            if message_model.has_events:
+                message_logger.info("Message events:")
+                self.format(DataType.cirrus_events, message_model.events_list, options)
+            if message_model.has_payloads:
+                message_logger.info("Message payloads:")
+                self.format(DataType.cirrus_payloads, message_model.payloads_list, options)
+            if message_model.has_metadata:
+                message_logger.info("Message metadata:")
+                self.format(DataType.cirrus_metadata, message_model.metadata_list, options)
+            if message_model.has_transforms:
+                message_logger.info("Message transforms:")
+                self.format(DataType.cirrus_transforms, message_model.transforms_list, options)
+                message_logger.info("Message transform steps:")
+                self.format_transform_sub_lists(message_model.transforms_list, options)
+            if message_model.has_rule:
+                message_logger.info("Message rule:")
+                self.format(DataType.config_rule, [message_model.rule], options)
+            if message_model.has_search_criteria:
+                pass
+
     def format(self, data_type, data, options):
         self._format(data_type, data, options, True)
 
@@ -65,6 +95,12 @@ class Formatter:
             return ["tracking-point", "source", "sub-source", "destination", "sub-destination", "type", "subType", "sequence-number", "insertDate"]
         elif data_type == DataType.cirrus_events:
             return ["insertDate", "id", "unique-id", "source-adapter", "event-id", "event-name", "event-date", "event-sucess", "end-point", "sequence-number", "workflow-id"]
+        elif data_type == DataType.cirrus_transforms:
+            return ["insertDate", "id", "transform-name", "transform-channel", "source", "destination", "type", "comment", "split-result", "split-result-xpath", "next-destination", "generate-new-message-id"]
+        elif data_type == DataType.cirrus_transforms_steps:
+            return ["transform-name", "transform-channel", "id", "transform-step-name", "transform-order", "url", "transform-step-type", "comment"]
+        elif data_type == DataType.cirrus_metadata:
+            return None # TODO need to find a metadata example
         elif data_type in [DataType.analysis_yara_movements, DataType.transform_backtrace_fields]:
             return self._get_dynamic_headings(data_type)
         elif data_type == DataType.empty_fields_for_payload:
@@ -81,18 +117,30 @@ class Formatter:
         elif data_type == DataType.cirrus_messages:
             defined_fields = [["insertDate"], ["id"], ["unique-id"], ["source"], ["destination"], ["sub-destination"], ["type"], ["sub-type"], ["parent-id"], ["process-id"], ["business-id"], ["message-status"], ["message-date"]]
         elif data_type == DataType.cirrus_metadata:
-            defined_fields = []
+            defined_fields = [] # TODO need to find a metadata example
         elif data_type == DataType.cirrus_payloads:
             defined_fields = [["tracking-point"], ["source"], ["sub-source"], ["destination"], ["sub-destination"], ["type"], ["subType"], ["sequence-number"], ["insertDate"]]
         elif data_type == DataType.cirrus_events:
             defined_fields = [["insertDate"], ["id"], ["unique-id"], ["source-adapter"], ["event-id"], ["event-name"], ["event-date"], ["event-sucess"], ["end-point"], ["sequence-number"], ["workflow-id"]]
         elif data_type == DataType.cirrus_transforms:
-            defined_fields = []
+            defined_fields = [["insertDate"], ["id"], ["transform-name"], ["transform-channel"], ["source"], ["destination"], ["type"], ["comment"], ["split-result"], ["split-result-xpath"], ["next-destination"], ["generate-new-message-id"]]
+        elif data_type == DataType.cirrus_transforms_steps:
+            defined_fields = [["transform-name"], ["transform-channel"], ["id"], ["transform-step-name"], ["transform-order"], ["url"], ["transform-step-type"], ["comment"]]
         elif data_type == DataType.analysis_messages:
             defined_fields = [[h] for h in self._get_dynamic_headings(data_type)]
         else:
             defined_fields = []
         return self._get_defined_fields_for_datatype(data, defined_fields) if defined_fields else []
+
+    def format_transform_sub_lists(self, transform_data, options):
+        # We don't need to do this for JSON output
+        if options.get(OUTPUT) == JSON:
+            return
+        for current_transform in transform_data:
+            parent_prefix_dict = { parent_key: current_transform.get(parent_key) for parent_key in ["transform-name", "transform-channel"] }
+            if "transform-steps" in current_transform and current_transform["transform-steps"]:
+                updates_transform_data = [ dict(parent_prefix_dict, **record) for record in current_transform["transform-steps"] ]
+                self.format(DataType.cirrus_transforms_steps, updates_transform_data, options)
 
     @staticmethod
     def _get_field(data, fields):

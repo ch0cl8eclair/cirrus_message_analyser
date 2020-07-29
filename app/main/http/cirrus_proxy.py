@@ -139,6 +139,10 @@ class CirrusProxy:
         logger.info("Issue search for message transforms to cirrus")
         return self.__get_url_and_issue("GET_MESSAGE_TRANSFORMS", search_parameters)
 
+    def get_message_by_uid(self, msg_uid):
+        logger.info("Issue search for message id to cirrus")
+        return self.__get_url_and_issue("FIND_MESSAGE_BY_ID", {MSG_UID: msg_uid})
+
     def __generate_auth_string(self):
         config_credentials = self.configuration.get(CREDENTIALS)
         up_str = "{}:{}".format(config_credentials.get(USERNAME), config_credentials.get(PASSWORD))

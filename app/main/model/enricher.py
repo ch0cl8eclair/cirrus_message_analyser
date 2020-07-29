@@ -4,7 +4,8 @@ from main.config.configuration import ConfigSingleton, LOGGING_CONFIG_FILE
 import logging
 from logging.config import fileConfig
 
-from main.model.model_utils import get_transform_search_parameters, InvalidStateException
+from main.model.model_utils import get_transform_search_parameters, InvalidStateException, \
+    extract_search_parameters_from_message_detail
 
 fileConfig(LOGGING_CONFIG_FILE)
 logger = logging.getLogger('main')
@@ -20,8 +21,8 @@ class MessageEnricher:
     """Given a message model, this class determines which data to retrieve for the message and update the message model with the data"""
 
     def __init__(self, message_model, cirrus_proxy):
-        if not message_model.has_rule:
-            raise InvalidStateException("Message Enricher requires rule")
+        if not message_model.has_rule and not message_model.message_uid:
+            raise InvalidStateException("Message Enricher requires rule or message uid")
         self.message = message_model
         self.cirrus_proxy = cirrus_proxy
 
@@ -67,9 +68,29 @@ class MessageEnricher:
         self.message.add_metadata(result)
 
     def __retrieve_message_transforms(self):
-        search_parameters = get_transform_search_parameters(self.message.rule)
-        result = self.cirrus_proxy.get_transforms_for_message(search_parameters)
-        self.message.add_transforms(result)
+        if self.message.has_rule:
+            search_parameters = get_transform_search_parameters(self.message.rule)
+        elif self.message.message_uid:
+            self.__retrieve_message_by_id()
+            # we probably have the search parameters now if the request was successful
+            search_parameters = self.message.search_criteria
+        if search_parameters:
+            result = self.cirrus_proxy.get_transforms_for_message(search_parameters)
+            self.message.add_transforms(result)
+        else:
+            logger.error("Failed to retrieve message transforms as we do not have rule search criteria or message details")
+
+    def __retrieve_message_by_id(self):
+        result = None
+        # only retrieve if we don't have the data already
+        if not self.message.has_message_details:
+            result = self.cirrus_proxy.get_message_by_uid(self.get_message_id())
+            self.message.add_message_details(result[0] if result and len(result) >= 1 else None)
+        # Add in the search criteria if not present
+        if not self.message.has_search_criteria:
+            msg_details = result if result else [self.message.message_details]
+            search_parameters = extract_search_parameters_from_message_detail(msg_details)
+            self.message.add_search_criteria(search_parameters)
 
     def get_message_id(self):
         if self.message.message_uid:

@@ -103,6 +103,7 @@ class DataType(Enum):
     empty_fields_for_payload = 9
     mandatory_fields_for_payload = 10
     transform_backtrace_fields = 11
+    cirrus_transforms_steps = 12
 
 
 class DataRequisites(Enum):

@@ -68,6 +68,10 @@ class CommandLineParserTest(unittest.TestCase):
         expected = {'function': 'analyse', 'rule': 'YARA_MOVEMENTS_BASIC', 'time': 'yesterday', 'limit': 1, 'options': {'output': 'csv', 'quiet': False, 'verbose': False}}
         self.assertEqual(expected, self.call_sut_func(cli_cmd))
 
+    def test_detail_message(self):
+        cli_cmd = """cmc.py detail --uid 324324-23434-3423423"""
+        expected = {'function': 'detail', 'uid': '324324-23434-3423423', 'options': {'output': 'csv', 'quiet': False, 'verbose': False}}
+        self.assertEqual(expected, self.call_sut_func(cli_cmd))
 
     def test_list_rules(self):
         cli_cmd = """cmc.py list rules"""

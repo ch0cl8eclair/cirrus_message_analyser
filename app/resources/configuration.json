@@ -22,6 +22,11 @@
       "url": "https://cirrusconnect.eu.f4f.com/cirrus-connect/rest/tracking/metadata/find-by-message-unique-id/{}"
     },
     {
+      "name": "FIND_MESSAGE_BY_ID",
+      "type": "GET",
+      "url": "https://cirrusconnect.eu.f4f.com/cirrus-connect/rest/tracking/message/find-by-message-id/{}"
+    },
+    {
       "name": "GET_MESSAGE_TRANSFORMS",
       "type": "POST",
       "url": "https://cirrusconnect.eu.f4f.com/cirrus-connect/rest/workbench/transform/search",

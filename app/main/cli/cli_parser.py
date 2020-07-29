@@ -17,6 +17,7 @@ message_logger = logging.getLogger('message')
 LIST = 'list'
 ANALYSE = 'analyse'
 CLEAR_CACHE = 'clear-cache'
+DETAIL = 'detail'
 
 output_types_list = [CSV, JSON, TABLE]
 
@@ -43,7 +44,7 @@ def create_parent_parser():
 
 def create_command_parser(parent_parser):
     command_parser = argparse.ArgumentParser(description="Cirrus Message Analyser commands", parents=[parent_parser])
-    command_parser.add_argument("command", choices=[LIST, ANALYSE, CLEAR_CACHE])
+    command_parser.add_argument("command", choices=[LIST, ANALYSE, CLEAR_CACHE, DETAIL])
     help_str = "List command directives: {}".format(",".join(list_commands))
     command_parser.add_argument("command_parameters", metavar='N', nargs='?', help=help_str)
     command_parser.add_argument("--uid", help="Specify the message unique id")
@@ -78,7 +79,6 @@ def parse_command_line_statement(arguments_list):
             logger.error("Invalid list argument given: %s", command_args.command_parameters)
     else:
         result_map[FUNCTION] = command_args.command
-    # TODO handle start and end datetime
     if command_args.rule:
         result_map[RULE] = command_args.rule
     if command_args.time:
