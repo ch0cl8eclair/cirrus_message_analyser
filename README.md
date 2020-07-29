@@ -94,6 +94,10 @@ Run analysis but limit the processing to the first message only. this saves on u
 ```
 cmc.py analyse --rule YARA_MOVEMENTS_BASIC --time yesterday --limit 1
 ```
+Detail a single message, useful to gain initial insights
+```
+cmc.py detail --uid <message unique id> --output table
+```
 
 List the configured rules
 ```
