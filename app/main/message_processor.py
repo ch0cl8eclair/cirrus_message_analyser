@@ -1,8 +1,8 @@
-from main.cli.cli_parser import ANALYSE
+from main.cli.cli_parser import ANALYSE, DETAIL
 from main.config.constants import RULES, FUNCTION, OPTIONS, RULE, TIME, SEARCH_PARAMETERS, START_DATETIME, END_DATETIME, \
     DataType, NAME, UID, MSG_UID, MESSAGE_ID, LIMIT, ALGORITHMS, MESSAGE_STATUS, ALGORITHM_STATS, CACHE_REF, \
     YARA_MOVEMENT_POST_JSON_ALGO, HAS_EMPTY_FIELDS_FOR_PAYLOAD, ARGUMENTS, HAS_MANDATORY_FIELDS_FOR_PAYLOAD, \
-    TRANSFORM_BACKTRACE_FIELDS
+    TRANSFORM_BACKTRACE_FIELDS, SOURCE, DESTINATION, TYPE, DataRequisites
 
 from main.formatter.formatter import Formatter, AnalysisFormatter
 from main.http.cirrus_proxy import CirrusProxy, FailedToCommunicateWithCirrus
@@ -88,6 +88,17 @@ class MessageProcessor:
             self.list_message_transforms(search_parameters, options)
             return
 
+        elif function_to_call == DETAIL:
+            if UID not in cli_dict:
+                error_and_exit("Message unique id must be provided for this request")
+            msg_model = Message()
+            msg_model.add_message_uid(cli_dict.get(UID))
+            data_enricher = MessageEnricher(msg_model, self.cirrus_proxy)
+            data_fetch_set = frozenset([DataRequisites.payloads, DataRequisites.transforms])
+            data_enricher.retrieve_data(data_fetch_set)
+            self.formatter.format_message_model(msg_model, options)
+            return
+
         elif function_to_call == ANALYSE:
             if UID in cli_dict:
                 search_parameters[MESSAGE_ID] = cli_dict.get(UID)
@@ -162,6 +173,14 @@ class MessageProcessor:
             self.formatter.format(DataType.cirrus_metadata, result, format_options)
         except FailedToCommunicateWithCirrus as err:
             error_and_exit(str(err))
+
+    def find_message_by_id(self, search_criteria):
+        logger.debug("Attempting to find message by id")
+        try:
+            result = self.cirrus_proxy.get_message_by_uid(search_criteria.get(MSG_UID))
+        except FailedToCommunicateWithCirrus as err:
+            error_and_exit(str(err))
+        return result
 
     def list_rules(self, format_options):
         rules_list = self.configuration.get(RULES)

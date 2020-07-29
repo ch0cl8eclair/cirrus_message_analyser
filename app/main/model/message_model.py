@@ -14,10 +14,11 @@ class Message:
         self.has_status = False
         self.has_events = False
         self.has_payloads = False
-        self.has_metadata = True
+        self.has_metadata = False
         self.has_transforms = False
         self.has_rule = False
         self.has_search_criteria = False
+        self.has_message_details = False
         self.message_uid = None
 
     def add_rule(self, rule):
@@ -28,6 +29,13 @@ class Message:
         self.status_dict = status_record
         self.has_status = True
         self.message_uid = status_record.get(UNIQUE_ID)
+
+    def add_message_uid(self, msg_uid):
+        self.message_uid = msg_uid
+
+    def add_message_details(self, message_details_data):
+        self.message_details = message_details_data
+        self.has_message_details = True
 
     def add_events(self, events_data):
         self.events_list = events_data
@@ -45,7 +53,10 @@ class Message:
         # filter transforms by message type, and movement search will return movement and movementCancellation
         filter_type = self.__get_msg_type_search_parameter()
         if filter_type:
-            self.transforms_list = [transform for transform in transform_data if transform[TYPE] == "movement"]
+            original_length = len(transform_data)
+            self.transforms_list = [transform for transform in transform_data if transform[TYPE] == filter_type]
+            filtered_length = len(self.transforms_list)
+            logger.info(f"Filtered transforms list from {original_length} to {filtered_length} for filter type: {filter_type}")
         # Add all transforms if there is no filter defined
         else:
             self.transforms_list = transform_data
@@ -60,8 +71,10 @@ class Message:
     #     self.message_uid = message_uid
 
     def __get_msg_type_search_parameter(self):
-        if self.rule and self.rule.get(SEARCH_PARAMETERS) and TYPE in self.rule.get(SEARCH_PARAMETERS):
+        if self.has_rule and self.rule and self.rule.get(SEARCH_PARAMETERS) and TYPE in self.rule.get(SEARCH_PARAMETERS):
             return self.rule.get(SEARCH_PARAMETERS)[TYPE]
+        elif self.has_search_criteria:
+            return self.search_criteria[TYPE]
         return None
 
     # def __generate_transform_summary_lists(self):
