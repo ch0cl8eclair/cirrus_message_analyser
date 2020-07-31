@@ -32,14 +32,14 @@ def get_matching_transform_step(transforms, stage_type, transform_name, transfor
     return None
 
 
-def get_transform_step_from_payload(self, payload, tranforms):
+def get_transform_step_from_payload(payload, transforms):
     transform_stage = payload.get("tracking-point")
     match = re.match(r'^(\w+)\s*-\s*(.*)\((.*)\)$', transform_stage)
     if match:
         stage_type = match.group(1)
         transform_name = match.group(2)
         transform_step_name = match.group(3)
-        return self.__get_matching_transform_step(tranforms, stage_type, transform_name, transform_step_name)
+        return get_matching_transform_step(transforms, stage_type, transform_name, transform_step_name)
     return None
 
 

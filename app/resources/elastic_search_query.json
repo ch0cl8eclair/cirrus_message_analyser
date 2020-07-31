@@ -1,0 +1,46 @@
+{
+  "version": true,
+  "size": 500,
+  "sort": [
+    {
+      "_score": {
+        "order": "desc"
+      }
+    }
+  ],
+  "stored_fields": [
+    "*"
+  ],
+  "script_fields": {},
+  "docvalue_fields": [
+    {
+      "field": "@timestamp",
+      "format": "date_time"
+    }
+  ],
+  "_source": ["message", "host", "source", "level", "@timestamp"],
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "multi_match": {
+            "query": "d3001b5a ad37 4032 a91d 71d1ad5e4441",
+            "fields": ["message"],
+            "type": "phrase"
+          }
+        }
+      ],
+      "filter": [
+        {
+          "range": {
+            "@timestamp": {
+              "gte": "2020-07-28T12:21:10.000Z",
+              "lte": "2020-07-28T12:22:15.000Z",
+              "format": "strict_date_optional_time"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

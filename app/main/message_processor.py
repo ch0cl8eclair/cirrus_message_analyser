@@ -96,6 +96,8 @@ class MessageProcessor:
             data_enricher = MessageEnricher(msg_model, self.cirrus_proxy)
             data_fetch_set = frozenset([DataRequisites.payloads, DataRequisites.transforms])
             data_enricher.retrieve_data(data_fetch_set)
+            data_enricher.add_transform_mappings()
+            data_enricher.lookup_message_location_on_log_server()
             self.formatter.format_message_model(msg_model, options)
             return
 

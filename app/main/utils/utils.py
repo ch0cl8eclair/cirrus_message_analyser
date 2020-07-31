@@ -106,5 +106,8 @@ def clear_quotes(given_str):
 
 
 def convert_timestamp_to_datetime_str(timestamp):
-    date = datetime.datetime.fromtimestamp(timestamp/1e3)
-    return format_datetime_to_zulu(date)
+    return format_datetime_to_zulu(convert_timestamp_to_datetime(timestamp))
+
+
+def convert_timestamp_to_datetime(timestamp):
+    return datetime.datetime.utcfromtimestamp(timestamp/1e3)

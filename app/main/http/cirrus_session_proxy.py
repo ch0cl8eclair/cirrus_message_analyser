@@ -14,7 +14,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from main.config.configuration import ConfigSingleton, LOGGING_CONFIG_FILE
 from main.config.configuration import get_configuration_dict
 from main.config.constants import CREDENTIALS, USERNAME, PASSWORD, CHROME_DRIVER_FOLDER, CIRRUS_CONNECT_WEB_URL, \
-    CACHED_COOKIE, CACHE_REF, MIN_30
+    CACHED_COOKIE, CACHE_REF, MIN_30, CIRRUS_CREDENTIALS
 from main.utils.utils import error_and_exit
 
 fileConfig(LOGGING_CONFIG_FILE)
@@ -32,8 +32,8 @@ def enter_data_into_field(text_file_component, text_to_enter, hit_return=False):
 
 
 def login(driver, config):
-    username = config.get(CREDENTIALS).get(USERNAME)
-    password = config.get(CREDENTIALS).get(PASSWORD)
+    username = config.get(CREDENTIALS).get(CIRRUS_CREDENTIALS).get(USERNAME)
+    password = config.get(CREDENTIALS).get(CIRRUS_CREDENTIALS).get(PASSWORD)
     logger.debug("Logging in with username: [{}] and password: [{}]".format(username, password))
 
     username_field = driver.find_element_by_name("j_username")

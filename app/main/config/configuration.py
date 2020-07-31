@@ -1,7 +1,7 @@
 import os
 
 from main.config.constants import CREDENTIALS, RULES, CHROME_DRIVER_FOLDER, PASSWORD, USERNAME, CIRRUS_USERNAME, \
-    CIRRUS_PASSWORD
+    CIRRUS_PASSWORD, CIRRUS_CREDENTIALS
 from main.utils.utils import parse_json_from_file
 
 CONFIGURATION_FILE = "resources/configuration.json"
@@ -57,7 +57,7 @@ def read_environment_variables(main_config):
     for env_var, conf_var in environment_credentials_vars_map.items():
         env_value = os.environ.get(env_var)
         if env_value is not None:
-            main_config[CREDENTIALS][conf_var] = env_value
+            main_config[CREDENTIALS][CIRRUS_CREDENTIALS][conf_var] = env_value
 
 
 def get_configuration_dict():

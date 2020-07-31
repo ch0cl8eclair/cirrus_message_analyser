@@ -5,7 +5,8 @@ import json
 
 from main.config.configuration import ConfigSingleton, LOGGING_CONFIG_FILE
 from main.config.constants import CREDENTIALS, USERNAME, PASSWORD, URLS, \
-    NAME, URL, GET, TYPE, POST, DATA_DICT, MSG_UID, CIRRUS_COOKIE, CACHE_REF, CACHED_COOKIE, WEEK, DAY_1
+    NAME, URL, GET, TYPE, POST, DATA_DICT, MSG_UID, CIRRUS_COOKIE, CACHE_REF, CACHED_COOKIE, WEEK, DAY_1, \
+    CIRRUS_CREDENTIALS
 from main.http.cirrus_session_proxy import read_cookies_file
 from main.model.model_utils import CacheMissException
 import urllib.parse
@@ -144,7 +145,7 @@ class CirrusProxy:
         return self.__get_url_and_issue("FIND_MESSAGE_BY_ID", {MSG_UID: msg_uid})
 
     def __generate_auth_string(self):
-        config_credentials = self.configuration.get(CREDENTIALS)
+        config_credentials = self.configuration.get(CREDENTIALS)[CIRRUS_CREDENTIALS]
         up_str = "{}:{}".format(config_credentials.get(USERNAME), config_credentials.get(PASSWORD))
 
         message_bytes = up_str.encode('ascii')

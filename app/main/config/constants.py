@@ -3,6 +3,8 @@ import os
 
 CREDENTIALS = "credentials"
 RULES = "rules"
+ELASTICSEARCH_CREDENTIALS = "elastic_log_search"
+CIRRUS_CREDENTIALS = "cirrus"
 
 OUTPUT = 'output'
 QUIET = 'quiet'
@@ -89,6 +91,23 @@ ARGUMENTS = "arguments"
 
 FIELD_TYPE = "field_type"
 
+ENABLE_SELENIUM_LOGIN = "enable_selenium_login"
+ENABLE_ELASTICSEARCH_QUERY = "enable_elasticsearch_query"
+ELASTICSEARCH_HOST = "elasticsearch_host"
+ELASTICSEARCH_PORT = "elasticsearch_port"
+ELASTICSEARCH_SCHEME = "elasticsearch_scheme"
+ELASTICSEARCH_INDEX = "elasticsearch_index"
+ELASTICSEARCH_SECONDS_MARGIN = "elasticsearch_seconds_margin"
+
+HOST = "host"
+LOGFILE = "logfile"
+LOG_MESSAGE = "log_message"
+LOG_CORRELATION_ID = "log_correlation_id"
+HOST_LOG_MAPPINGS = "host_log_mappings"
+LOG_LINES = "log_lines"
+LINE = "line"
+LEVEL = "level"
+LOG_STATEMENT_FOUND = "log_statements_found"
 
 # Declaring these enums here to avoid circular reference issues, that are such a pain
 class DataType(Enum):
@@ -104,6 +123,9 @@ class DataType(Enum):
     mandatory_fields_for_payload = 10
     transform_backtrace_fields = 11
     cirrus_transforms_steps = 12
+    payload_transform_mappings = 13
+    host_log_mappings = 14
+    log_statements = 15
 
 
 class DataRequisites(Enum):
