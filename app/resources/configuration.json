@@ -34,5 +34,12 @@
     }
   ],
   "chrome-driver-folder": "chromedriver83_win32",
-  "cirrus_connect_web_url": "https://cirrusconnect.eu.f4f.com/cirrus-connect/"
+  "cirrus_connect_web_url": "https://cirrusconnect.eu.f4f.com/cirrus-connect/",
+  "enable_selenium_login" : true,
+  "enable_elasticsearch_query" : true,
+  "elasticsearch_host": "elasticsearch-prd.adaptris.net",
+  "elasticsearch_port": "443",
+  "elasticsearch_scheme": "https",
+  "elasticsearch_index": "filebeat-*",
+  "elasticsearch_seconds_margin": 45
 }

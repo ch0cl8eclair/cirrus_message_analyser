@@ -5,10 +5,12 @@ from logging.config import fileConfig
 from tabulate import tabulate
 
 from main.algorithms.empty_fields import FlattenJsonOutputToCSV
+from main.algorithms.payload_transform_mapper import PayloadTransformMapper
 from main.config.configuration import LOGGING_CONFIG_FILE
 from main.config.constants import OUTPUT, JSON, CSV, TABLE, DataType, NAME, TransformStage, QUIET, \
     YARA_MOVEMENT_POST_JSON_ALGO, HAS_EMPTY_FIELDS_FOR_PAYLOAD, HAS_MANDATORY_FIELDS_FOR_PAYLOAD, \
-    TRANSFORM_BACKTRACE_FIELDS
+    TRANSFORM_BACKTRACE_FIELDS, MESSAGE_ID, HOST, LOGFILE, LOG_MESSAGE, HOST_LOG_MAPPINGS, LEVEL, LOG_LINES, \
+    LOG_CORRELATION_ID, LINE, LOG_STATEMENT_FOUND, TIME
 
 from main.model.model_utils import enrich_message_analysis_status_results, get_algorithm_results_per_message, \
     prefix_message_id_to_lines, get_data_type_for_algorithm, get_algorithm_name_from_data_type
@@ -26,30 +28,51 @@ class Formatter:
     def format_message_model(self, message_model, options):
         if message_model:
             if message_model.has_status:
-                message_logger.info("Message summary:")
+                message_logger.info("\nMessage summary:")
                 self.format(DataType.cirrus_messages, [message_model.status_dict], options)
             if message_model.has_message_details:
-                message_logger.info("Message summary:")
+                message_logger.info("\nMessage summary:")
                 self.format(DataType.cirrus_messages, [message_model.message_details], options)
             if message_model.has_events:
-                message_logger.info("Message events:")
+                message_logger.info("\nMessage events:")
                 self.format(DataType.cirrus_events, message_model.events_list, options)
             if message_model.has_payloads:
-                message_logger.info("Message payloads:")
+                message_logger.info("\nMessage payloads:")
                 self.format(DataType.cirrus_payloads, message_model.payloads_list, options)
             if message_model.has_metadata:
-                message_logger.info("Message metadata:")
+                message_logger.info("\nMessage metadata:")
                 self.format(DataType.cirrus_metadata, message_model.metadata_list, options)
             if message_model.has_transforms:
-                message_logger.info("Message transforms:")
+                message_logger.info("\nMessage transforms:")
                 self.format(DataType.cirrus_transforms, message_model.transforms_list, options)
-                message_logger.info("Message transform steps:")
+                message_logger.info("\nMessage transform steps:")
                 self.format_transform_sub_lists(message_model.transforms_list, options)
             if message_model.has_rule:
-                message_logger.info("Message rule:")
+                message_logger.info("\nMessage rule:")
                 self.format(DataType.config_rule, [message_model.rule], options)
             if message_model.has_search_criteria:
                 pass
+            if message_model.has_payload_transform_mappings:
+                message_logger.info("\nMessage payload to transform mappings:")
+                self.format(DataType.payload_transform_mappings, message_model.payload_transform_mappings, options)
+            if message_model.has_server_location:
+                if message_model.server_location_dict:
+                    correlation_id = message_model.server_location_dict.get(LOG_CORRELATION_ID, '')
+                    message_uid = message_model.server_location_dict.get(MESSAGE_ID, '')
+                    has_log_uid_statements = bool(message_model.server_location_dict.get(LOG_STATEMENT_FOUND, 'False'))
+                    if has_log_uid_statements:
+                        if HOST_LOG_MAPPINGS in message_model.server_location_dict:
+                            message_logger.info("\nServer location(s) found on elasticsearch server for message uid: {}:".format(message_uid))
+                            self.format(DataType.host_log_mappings, message_model.server_location_dict[HOST_LOG_MAPPINGS], options)
+                        if correlation_id and LOG_LINES in message_model.server_location_dict:
+                            message_logger.info("\nServer logs obtained from elastic search using correlation id: {}".format(correlation_id))
+                            # We can't format this as a table, the log statement are too large so force use of csv
+                            options[OUTPUT] = CSV
+                            self.format(DataType.log_statements, message_model.server_location_dict[LOG_LINES], options)
+                        else:
+                            message_logger.info("\nServer logs found on elasticsearch server for message id: {}, but no correlation id found to retrieve log messages".format(message_uid))
+                    else:
+                        message_logger.info("\nNo server logs found on elasticsearch server")
 
     def format(self, data_type, data, options):
         self._format(data_type, data, options, True)
@@ -74,7 +97,7 @@ class Formatter:
 
     def _format_data_as_table(self, data_records, headings):
         if data_records:
-            message_logger.info(tabulate(data_records, headings, tablefmt="github"))
+            message_logger.info(tabulate(data_records, headings, tablefmt="pretty"))
         else:
             logger.warning("No data present to output as table")
 
@@ -109,6 +132,12 @@ class Formatter:
             return FlattenJsonOutputToCSV.MANDATORY_HEADINGS
         elif data_type == DataType.analysis_messages:
             return self._get_dynamic_headings(data_type)
+        elif data_type == DataType.payload_transform_mappings:
+            return PayloadTransformMapper.HEADINGS
+        elif data_type == DataType.host_log_mappings:
+            return [HOST, LOGFILE]
+        elif data_type == DataType.log_statements:
+            return [TIME, LEVEL, LINE]
         return None
 
     def _flatten_data_record(self, data_type, data):
@@ -128,6 +157,12 @@ class Formatter:
             defined_fields = [["transform-name"], ["transform-channel"], ["id"], ["transform-step-name"], ["transform-order"], ["url"], ["transform-step-type"], ["comment"]]
         elif data_type == DataType.analysis_messages:
             defined_fields = [[h] for h in self._get_dynamic_headings(data_type)]
+        elif data_type == DataType.payload_transform_mappings:
+            defined_fields = [[heading] for heading in self._get_headings(data_type)]
+        elif data_type == DataType.host_log_mappings:
+            defined_fields = [[heading] for heading in self._get_headings(data_type)]
+        elif data_type == DataType.log_statements:
+            defined_fields = [[heading] for heading in self._get_headings(data_type)]
         else:
             defined_fields = []
         return self._get_defined_fields_for_datatype(data, defined_fields) if defined_fields else []
@@ -136,11 +171,14 @@ class Formatter:
         # We don't need to do this for JSON output
         if options.get(OUTPUT) == JSON:
             return
+        all_records = []
         for current_transform in transform_data:
             parent_prefix_dict = { parent_key: current_transform.get(parent_key) for parent_key in ["transform-name", "transform-channel"] }
             if "transform-steps" in current_transform and current_transform["transform-steps"]:
                 updates_transform_data = [ dict(parent_prefix_dict, **record) for record in current_transform["transform-steps"] ]
-                self.format(DataType.cirrus_transforms_steps, updates_transform_data, options)
+                all_records.extend(updates_transform_data)
+        if all_records:
+            self.format(DataType.cirrus_transforms_steps, all_records, options)
 
     @staticmethod
     def _get_field(data, fields):

@@ -19,7 +19,9 @@ class Message:
         self.has_rule = False
         self.has_search_criteria = False
         self.has_message_details = False
+        self.has_payload_transform_mappings = False
         self.message_uid = None
+        self.has_server_location = False
 
     def add_rule(self, rule):
         self.rule = rule
@@ -54,6 +56,7 @@ class Message:
         filter_type = self.__get_msg_type_search_parameter()
         if filter_type:
             original_length = len(transform_data)
+            # TODO need to make sure this works correctly with Cirrus data, may need to use substring matching instead
             self.transforms_list = [transform for transform in transform_data if transform[TYPE] == filter_type]
             filtered_length = len(self.transforms_list)
             logger.info(f"Filtered transforms list from {original_length} to {filtered_length} for filter type: {filter_type}")
@@ -66,9 +69,9 @@ class Message:
         self.search_criteria = search_criteria
         self.has_search_criteria = True
 
-    # def add_message_unique_id(self, message_uid):
-    #     """This is only called when the user sets a uid from the cli"""
-    #     self.message_uid = message_uid
+    def add_payload_transform_mappings(self, mappings):
+        self.payload_transform_mappings = mappings
+        self.has_payload_transform_mappings = True
 
     def __get_msg_type_search_parameter(self):
         if self.has_rule and self.rule and self.rule.get(SEARCH_PARAMETERS) and TYPE in self.rule.get(SEARCH_PARAMETERS):
@@ -77,28 +80,6 @@ class Message:
             return self.search_criteria[TYPE]
         return None
 
-    # def __generate_transform_summary_lists(self):
-    #     """Generates the transform stage names as per payloads from the transforms list"""
-    #     if not self.has_transforms:
-    #         logger.error("No transforms found for message to generate transform steps")
-    #         return
-    #     summary_list = []
-    #     for current_transform in self.transforms_list:
-    #         parsing_in = False
-    #         summary_list.append(current_transform.get("transform-channel"))
-    #         prefix = current_transform.get("transform-name")
-    #         if prefix == "IN":
-    #             parsing_in = True
-    #         for current_step in current_transform.get("transform-steps"):
-    #             step_name = current_step.get("transform-step-name")
-    #             step_type = current_step.get("transform-step-type")
-    #             translated_type = translate_step_type_to_payload_type(step_type)
-    #             summary_list.append("{} - {}({})".format(translated_type, prefix, step_name))
-    #         if parsing_in:
-    #             summary_list.append(ROUTE)
-    #     summary_list.append(SEND)
-    #     self.transform_summary_stage_names = summary_list
-    #
-    # def get_transform_stage_names(self):
-    #     # TODO need to use getattr
-    #     return self.transform_summary_stage_names if self.transform_summary_stage_names else None
+    def add_server_location(self, location_dict):
+        self.server_location_dict = location_dict
+        self.has_server_location = True

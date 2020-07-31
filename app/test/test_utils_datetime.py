@@ -112,7 +112,7 @@ class UtilsDateTimeTest(unittest.TestCase):
     def test_convert_timestamp_to_datetime_str(self):
         timestamp = 1591270622000
         actual = convert_timestamp_to_datetime_str(timestamp)
-        self.assertEquals("2020-06-04T12:37:02.000Z", actual)
+        self.assertEquals("2020-06-04T11:37:02.000Z", actual)
 
 
 if __name__ == '__main__':

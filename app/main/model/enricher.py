@@ -1,9 +1,12 @@
-from main.config.constants import MESSAGE_ID, SEARCH_PARAMETERS, TYPE, DESTINATION, SOURCE, DataRequisites
+from main.algorithms.payload_transform_mapper import PayloadTransformMapper
+from main.config.constants import MESSAGE_ID, SEARCH_PARAMETERS, TYPE, DESTINATION, SOURCE, DataRequisites, \
+    ENABLE_ELASTICSEARCH_QUERY
 
 from main.config.configuration import ConfigSingleton, LOGGING_CONFIG_FILE
 import logging
 from logging.config import fileConfig
 
+from main.http.elk_proxy import ElasticsearchProxy
 from main.model.model_utils import get_transform_search_parameters, InvalidStateException, \
     extract_search_parameters_from_message_detail
 
@@ -21,10 +24,13 @@ class MessageEnricher:
     """Given a message model, this class determines which data to retrieve for the message and update the message model with the data"""
 
     def __init__(self, message_model, cirrus_proxy):
+        self.configuration = ConfigSingleton()
         if not message_model.has_rule and not message_model.message_uid:
             raise InvalidStateException("Message Enricher requires rule or message uid")
         self.message = message_model
         self.cirrus_proxy = cirrus_proxy
+        if bool(self.configuration.get(ENABLE_ELASTICSEARCH_QUERY)):
+            self.elasticsearch_proxy = ElasticsearchProxy()
 
     def retrieve_data(self, prerequisites_data_set):
         """Retrieves the required prereq data for the current msg"""
@@ -76,9 +82,25 @@ class MessageEnricher:
             search_parameters = self.message.search_criteria
         if search_parameters:
             result = self.cirrus_proxy.get_transforms_for_message(search_parameters)
+            # In case we don't get another with a source & destination search, then do separate searches
+            if not result:
+                result = self.__retrieve_transforms_per_channel()
             self.message.add_transforms(result)
         else:
             logger.error("Failed to retrieve message transforms as we do not have rule search criteria or message details")
+
+    def __retrieve_transforms_per_channel(self):
+        logger.warning("No transforms found for combined transform search, now attempting to search against separate channels")
+        search_parameters = self.message.search_criteria
+        combined_result = []
+        for key in [DESTINATION, SOURCE]:
+            temp_search_parameters = dict(search_parameters)
+            del temp_search_parameters[key]
+            channel_transform_result = self.cirrus_proxy.get_transforms_for_message(temp_search_parameters)
+            logger.debug("Obtained {} transforms by removing key: {} from search".format(len(channel_transform_result), key))
+            if channel_transform_result:
+                combined_result.extend(channel_transform_result)
+        return combined_result
 
     def __retrieve_message_by_id(self):
         result = None
@@ -96,3 +118,16 @@ class MessageEnricher:
         if self.message.message_uid:
             return self.message.message_uid
         # TODO look into other source of msg id should the status not be available
+
+    def add_transform_mappings(self):
+        """Adds payload to transform mappings data structure to the message model"""
+        mapper = PayloadTransformMapper(self.message.payloads_list, self.message.transforms_list)
+        mapper.map()
+        self.message.add_payload_transform_mappings(mapper.get_records())
+
+    def lookup_message_location_on_log_server(self):
+        if bool(self.configuration.get(ENABLE_ELASTICSEARCH_QUERY)):
+            lookup_dict = self.elasticsearch_proxy.lookup_message(self.message.message_uid, self.message.payloads_list)
+            self.message.add_server_location(lookup_dict)
+        else:
+            logger.debug("Elastic search not enable for message search")
