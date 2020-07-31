@@ -94,7 +94,7 @@ Run analysis but limit the processing to the first message only. this saves on u
 ```
 cmc.py analyse --rule YARA_MOVEMENTS_BASIC --time yesterday --limit 1
 ```
-Detail a single message, useful to gain initial insights
+Detail a single message, useful to gain initial insights, the command will also fetch matching logs from the ELK log server that match the message and message timeframe from the payload data
 ```
 cmc.py detail --uid <message unique id> --output table
 ```
@@ -131,3 +131,11 @@ Selenium requires an exact match with your Chrome browser version (with regards 
 ```
 See step five on installation to fix this.
 ```
+
+## Upgrading
+To upgrade to version 2 from version 1:
+
+- git pull to get the lastest version
+- install the new elasticsearch package using pip or disable elasticsearch feature by turning off the config switch: ```enable_elasticsearch_query``` within ```resource/configuration.json```
+- Upgrade you credentials file to now have credentials to both Cirrus and Elasticsearch (this will be you standard operations network credentials)
+
