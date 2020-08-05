@@ -13,6 +13,7 @@ VERBOSE = 'verbose'
 CSV = 'csv'
 JSON = 'json'
 TABLE = 'table'
+FILE = 'file'
 
 ID = "id"
 URL = "url"
@@ -98,16 +99,24 @@ ELASTICSEARCH_PORT = "elasticsearch_port"
 ELASTICSEARCH_SCHEME = "elasticsearch_scheme"
 ELASTICSEARCH_INDEX = "elasticsearch_index"
 ELASTICSEARCH_SECONDS_MARGIN = "elasticsearch_seconds_margin"
+ELASTICSEARCH_EXCLUDE_LOG_FILES = "elasticsearch_exclude_log_files"
 
 HOST = "host"
 LOGFILE = "logfile"
-LOG_MESSAGE = "log_message"
-LOG_CORRELATION_ID = "log_correlation_id"
+# LOG_MESSAGE = "log_message"
+LOG_CORRELATION_ID = "log_correlation_id" # used as table header in output
+HOST_LOG_CORRELATION_ID = "host_log_correlation_id"
 HOST_LOG_MAPPINGS = "host_log_mappings"
 LOG_LINES = "log_lines"
+LOG_LINE_STATS = "log_line_stats"
 LINE = "line"
 LEVEL = "level"
 LOG_STATEMENT_FOUND = "log_statements_found"
+
+OUTPUT_FOLDER = "output_folder"
+ERROR_COUNT = "errors"
+TOTAL_COUNT = "totals"
+
 
 # Declaring these enums here to avoid circular reference issues, that are such a pain
 class DataType(Enum):
@@ -126,7 +135,8 @@ class DataType(Enum):
     payload_transform_mappings = 13
     host_log_mappings = 14
     log_statements = 15
-
+    elastic_search_results = 16
+    elastic_search_results_correlated = 17
 
 class DataRequisites(Enum):
     status = 0

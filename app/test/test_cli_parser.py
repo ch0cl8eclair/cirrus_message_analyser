@@ -73,6 +73,11 @@ class CommandLineParserTest(unittest.TestCase):
         expected = {'function': 'detail', 'uid': '324324-23434-3423423', 'options': {'output': 'csv', 'quiet': False, 'verbose': False}}
         self.assertEqual(expected, self.call_sut_func(cli_cmd))
 
+    def test_detail_message_file_output(self):
+        cli_cmd = """cmc.py detail --uid 324324-23434-3423423 --output file"""
+        expected = {'function': 'detail', 'uid': '324324-23434-3423423', 'options': {'output': 'file', 'quiet': False, 'verbose': False}}
+        self.assertEqual(expected, self.call_sut_func(cli_cmd))
+
     def test_list_rules(self):
         cli_cmd = """cmc.py list rules"""
         expected = {'function': 'list_rules', 'options': {'output': 'csv', 'quiet': False, 'verbose': False}}

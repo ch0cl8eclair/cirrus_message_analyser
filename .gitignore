@@ -16,3 +16,5 @@ ant/resources/ivy.jar
 **/*.log
 venv/**
 app/resources/credentials.json
+logs/**
+output/**
