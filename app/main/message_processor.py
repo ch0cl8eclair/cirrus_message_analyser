@@ -2,7 +2,7 @@ from main.cli.cli_parser import ANALYSE, DETAIL
 from main.config.constants import RULES, FUNCTION, OPTIONS, RULE, TIME, SEARCH_PARAMETERS, START_DATETIME, END_DATETIME, \
     DataType, NAME, UID, MSG_UID, MESSAGE_ID, LIMIT, ALGORITHMS, MESSAGE_STATUS, ALGORITHM_STATS, CACHE_REF, \
     YARA_MOVEMENT_POST_JSON_ALGO, HAS_EMPTY_FIELDS_FOR_PAYLOAD, ARGUMENTS, HAS_MANDATORY_FIELDS_FOR_PAYLOAD, \
-    TRANSFORM_BACKTRACE_FIELDS, SOURCE, DESTINATION, TYPE, DataRequisites
+    TRANSFORM_BACKTRACE_FIELDS, SOURCE, DESTINATION, TYPE, DataRequisites, FILE, OUTPUT
 
 from main.formatter.formatter import Formatter, AnalysisFormatter
 from main.http.cirrus_proxy import CirrusProxy, FailedToCommunicateWithCirrus
@@ -49,6 +49,9 @@ class MessageProcessor:
         function_to_call = cli_dict.get(FUNCTION)
         options = cli_dict.get(OPTIONS)
         search_parameters = {}
+
+        if options.get(OUTPUT) == FILE and function_to_call != DETAIL :
+            error_and_exit("The file output option is current only valid with the details command!")
 
         logger.info("Received CLI request for function: {}".format(function_to_call))
         logger.debug("CLI command is: {}".format(str(cli_dict)))
@@ -98,6 +101,7 @@ class MessageProcessor:
             data_enricher.retrieve_data(data_fetch_set)
             data_enricher.add_transform_mappings()
             data_enricher.lookup_message_location_on_log_server()
+            self.formatter.current_message_uid = cli_dict.get(UID)
             self.formatter.format_message_model(msg_model, options)
             return
 

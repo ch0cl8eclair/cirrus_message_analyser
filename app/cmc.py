@@ -23,8 +23,6 @@ def main():
         # Hand over the message processor to action
         processor = MessageProcessor()
         # Obtain the cirrus cookies if not present
-        # TODO need to timeout cached cookie automatically after an hour,
-        #  current implemention can only be set to a min of one day
         if not processor.is_non_http_request(parsed_cli_parameters_dict):
             if not cookies_file_exists(config):
                 obtain_cookies_from_cirrus_manually()

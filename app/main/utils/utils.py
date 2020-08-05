@@ -25,6 +25,21 @@ def read_data_from_file(filename):
     return data
 
 
+def write_json_to_file(filepath, json_data, pretty=False):
+    with open(filepath, 'w') as outfile:
+        if not pretty:
+            json.dump(json_data, outfile)
+        else:
+            json.dump(json_data, outfile, indent=4)
+            # , sort_keys=True
+
+
+def write_text_to_file(filepath, lines_list):
+    with open(filepath, 'w') as file_handler:
+        for item in lines_list:
+            file_handler.write(f"{item}\n")
+
+
 def convert_package_str_to_path_notation(package_dot_name):
     """converts com.adaptris.core to com/adaptris/core"""
     if package_dot_name:

@@ -1,5 +1,7 @@
 import json
 import logging
+import operator
+from functools import reduce
 from logging.config import fileConfig
 
 from tabulate import tabulate
@@ -7,15 +9,14 @@ from tabulate import tabulate
 from main.algorithms.empty_fields import FlattenJsonOutputToCSV
 from main.algorithms.payload_transform_mapper import PayloadTransformMapper
 from main.config.configuration import LOGGING_CONFIG_FILE
-from main.config.constants import OUTPUT, JSON, CSV, TABLE, DataType, NAME, TransformStage, QUIET, \
+from main.config.constants import OUTPUT, JSON, CSV, TABLE, DataType, NAME, QUIET, \
     YARA_MOVEMENT_POST_JSON_ALGO, HAS_EMPTY_FIELDS_FOR_PAYLOAD, HAS_MANDATORY_FIELDS_FOR_PAYLOAD, \
-    TRANSFORM_BACKTRACE_FIELDS, MESSAGE_ID, HOST, LOGFILE, LOG_MESSAGE, HOST_LOG_MAPPINGS, LEVEL, LOG_LINES, \
-    LOG_CORRELATION_ID, LINE, LOG_STATEMENT_FOUND, TIME
-
+    TRANSFORM_BACKTRACE_FIELDS, MESSAGE_ID, HOST, LOGFILE, HOST_LOG_MAPPINGS, LEVEL, LOG_CORRELATION_ID, LINE, \
+    LOG_STATEMENT_FOUND, TIME, HOST_LOG_CORRELATION_ID, FILE, TOTAL_COUNT, ERROR_COUNT, \
+    LOG_LINE_STATS
+from main.formatter.file_output import FileOutputFormatter
 from main.model.model_utils import enrich_message_analysis_status_results, get_algorithm_results_per_message, \
     prefix_message_id_to_lines, get_data_type_for_algorithm, get_algorithm_name_from_data_type
-import operator
-from functools import reduce
 
 fileConfig(LOGGING_CONFIG_FILE)
 logger = logging.getLogger('main')
@@ -24,55 +25,58 @@ message_logger = logging.getLogger('message')
 
 class Formatter:
     """Formats out collected data to the specified output format: JSON|CSV|TABLE"""
+    def __init__(self):
+        self.file_output_service = FileOutputFormatter()
 
     def format_message_model(self, message_model, options):
         if message_model:
             if message_model.has_status:
-                message_logger.info("\nMessage summary:")
+                self._add_log_message_heading("\nMessage summary:", options)
                 self.format(DataType.cirrus_messages, [message_model.status_dict], options)
             if message_model.has_message_details:
-                message_logger.info("\nMessage summary:")
+                self._add_log_message_heading("\nMessage summary:", options)
                 self.format(DataType.cirrus_messages, [message_model.message_details], options)
             if message_model.has_events:
-                message_logger.info("\nMessage events:")
+                self._add_log_message_heading("\nMessage events:", options)
                 self.format(DataType.cirrus_events, message_model.events_list, options)
             if message_model.has_payloads:
-                message_logger.info("\nMessage payloads:")
+                self._add_log_message_heading("\nMessage payloads:", options)
                 self.format(DataType.cirrus_payloads, message_model.payloads_list, options)
             if message_model.has_metadata:
-                message_logger.info("\nMessage metadata:")
+                self._add_log_message_heading("\nMessage metadata:", options)
                 self.format(DataType.cirrus_metadata, message_model.metadata_list, options)
             if message_model.has_transforms:
-                message_logger.info("\nMessage transforms:")
+                self._add_log_message_heading("\nMessage transforms:", options)
                 self.format(DataType.cirrus_transforms, message_model.transforms_list, options)
-                message_logger.info("\nMessage transform steps:")
+                self._add_log_message_heading("\nMessage transform steps:", options)
                 self.format_transform_sub_lists(message_model.transforms_list, options)
             if message_model.has_rule:
-                message_logger.info("\nMessage rule:")
+                self._add_log_message_heading("\nMessage rule:", options)
                 self.format(DataType.config_rule, [message_model.rule], options)
             if message_model.has_search_criteria:
                 pass
             if message_model.has_payload_transform_mappings:
-                message_logger.info("\nMessage payload to transform mappings:")
+                self._add_log_message_heading("\nMessage payload to transform mappings:", options)
                 self.format(DataType.payload_transform_mappings, message_model.payload_transform_mappings, options)
             if message_model.has_server_location:
                 if message_model.server_location_dict:
-                    correlation_id = message_model.server_location_dict.get(LOG_CORRELATION_ID, '')
                     message_uid = message_model.server_location_dict.get(MESSAGE_ID, '')
+                    host_log_correlation_ids = message_model.server_location_dict.get(HOST_LOG_CORRELATION_ID, '')
                     has_log_uid_statements = bool(message_model.server_location_dict.get(LOG_STATEMENT_FOUND, 'False'))
                     if has_log_uid_statements:
+                        log_level_counts = message_model.server_location_dict[LOG_LINE_STATS]
                         if HOST_LOG_MAPPINGS in message_model.server_location_dict:
-                            message_logger.info("\nServer location(s) found on elasticsearch server for message uid: {}:".format(message_uid))
-                            self.format(DataType.host_log_mappings, message_model.server_location_dict[HOST_LOG_MAPPINGS], options)
-                        if correlation_id and LOG_LINES in message_model.server_location_dict:
-                            message_logger.info("\nServer logs obtained from elastic search using correlation id: {}".format(correlation_id))
-                            # We can't format this as a table, the log statement are too large so force use of csv
-                            options[OUTPUT] = CSV
-                            self.format(DataType.log_statements, message_model.server_location_dict[LOG_LINES], options)
-                        else:
-                            message_logger.info("\nServer logs found on elasticsearch server for message id: {}, but no correlation id found to retrieve log messages".format(message_uid))
+                            self._add_log_message_heading("\nServer location(s) found on elasticsearch server for message uid: {}:".format(message_uid), options)
+                            enriched_log_summary_data = self.file_output_service.enrich_log_summary_data(host_log_correlation_ids, message_model.server_location_dict[HOST_LOG_MAPPINGS], log_level_counts)
+                            new_options = dict(options)
+                            new_options[OUTPUT]=TABLE
+                            self.format(DataType.host_log_mappings, enriched_log_summary_data, new_options)
                     else:
                         message_logger.info("\nNo server logs found on elasticsearch server")
+
+    def _add_log_message_heading(self, message, options):
+        if options.get(OUTPUT, CSV) != FILE:
+            message_logger.info(message)
 
     def format(self, data_type, data, options):
         self._format(data_type, data, options, True)
@@ -81,6 +85,8 @@ class Formatter:
         logger.debug("Attempting to format data for type: {} and output: {}".format(data_type, options.get(OUTPUT)))
         if options.get(OUTPUT) == JSON:
             message_logger.info(json.dumps(data))
+        elif options.get(OUTPUT) == FILE:
+            self.file_output_service.output_json_data_to_file(self.current_message_uid, data_type, data)
         elif options.get(OUTPUT) == TABLE:
             if flatten_records:
                 data_records = [self._flatten_data_record(data_type, record) for record in data] if data else []
@@ -135,7 +141,7 @@ class Formatter:
         elif data_type == DataType.payload_transform_mappings:
             return PayloadTransformMapper.HEADINGS
         elif data_type == DataType.host_log_mappings:
-            return [HOST, LOGFILE]
+            return [HOST, LOGFILE, TOTAL_COUNT, ERROR_COUNT, LOG_CORRELATION_ID]
         elif data_type == DataType.log_statements:
             return [TIME, LEVEL, LINE]
         return None

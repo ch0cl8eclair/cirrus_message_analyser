@@ -1,7 +1,7 @@
 import argparse
 
 from main.config.constants import FUNCTION, UID, TIME, CSV, JSON, TABLE, RULE, OPTIONS, OUTPUT, START_DATETIME, \
-    END_DATETIME, LIMIT
+    END_DATETIME, LIMIT, FILE
 
 from main.config.configuration import ConfigSingleton, LOGGING_CONFIG_FILE
 import logging
@@ -19,7 +19,7 @@ ANALYSE = 'analyse'
 CLEAR_CACHE = 'clear-cache'
 DETAIL = 'detail'
 
-output_types_list = [CSV, JSON, TABLE]
+output_types_list = [CSV, JSON, TABLE, FILE]
 
 MESSAGES = 'messages'
 MESSAGE_PAYLOADS = 'message-payloads'

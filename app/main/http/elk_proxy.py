@@ -1,23 +1,35 @@
-import json
 import datetime
-from elasticsearch import Elasticsearch
-import re
-from main.config.configuration import ConfigSingleton, LOGGING_CONFIG_FILE, get_configuration_dict
+import json
 import logging
+import operator
+import re
+from collections import defaultdict
+from functools import reduce
 from logging.config import fileConfig
 
-from main.config.constants import LEVEL, LINE, ELASTICSEARCH_CREDENTIALS, CREDENTIALS, \
+from elasticsearch import Elasticsearch
+
+from main.config.configuration import ConfigSingleton, LOGGING_CONFIG_FILE, get_configuration_dict
+from main.config.constants import ELASTICSEARCH_CREDENTIALS, CREDENTIALS, \
     USERNAME, PASSWORD, ELASTICSEARCH_HOST, ELASTICSEARCH_SCHEME, ELASTICSEARCH_PORT, ELASTICSEARCH_INDEX, MESSAGE_ID, \
-    HOST, LOGFILE, LOG_MESSAGE, HOST_LOG_MAPPINGS, LOG_CORRELATION_ID, LOG_LINES, ELASTICSEARCH_SECONDS_MARGIN, \
-    LOG_STATEMENT_FOUND, TIME
-from main.utils.utils import parse_json_from_file, format_datetime_to_zulu, convert_timestamp_to_datetime_str, convert_timestamp_to_datetime
+    HOST, LOGFILE, HOST_LOG_MAPPINGS, ELASTICSEARCH_SECONDS_MARGIN, \
+    LOG_STATEMENT_FOUND, DataType, ELASTICSEARCH_EXCLUDE_LOG_FILES, HOST_LOG_CORRELATION_ID, LOG_LINE_STATS
+from main.formatter.file_output import FileOutputFormatter
+from main.utils.utils import parse_json_from_file, format_datetime_to_zulu, convert_timestamp_to_datetime_str, \
+    convert_timestamp_to_datetime
 
 fileConfig(LOGGING_CONFIG_FILE)
-logger = logging.getLogger('main')
+logger = logging.getLogger('requester')
 
 ES_QUERY_FILE = "resources/elastic_search_query.json"
-LOG_CORRELATION_REGEX = re.compile(r'^\[([^\[]+)\]\s+\[([^\]]+)\]\s+start processing msg.*')
+# [JCoServerThread-6@T-2ccbcdb6] [PoolingWorkflow] start processing message [[com.adaptris.core.DefaultAdaptrisMessageImp] uniqueId [d3001b5a-ad37-4032-a91d-71d1ad5e4441] metadata [{jcoidoctyp=DELVRY07}]]
+LOG_CORRELATION_REGEX = re.compile(r'^\[([^\[]+)\]\s+\[([^\]]+)\]\s+start processing m\w+.*')
 
+# [managed-out-transform(3f2e83ee)] [com.adaptris.core.PoolingWorkflow] message [d3001b5a-ad37-4032-a91d-71d1ad5e4441] processed in [220] ms
+LOG_CORRELATION_END_REGEX = re.compile(r'^\[([^\[]+)\]\s+\[([^\]]+)\]\s+message \[([^\]]+)\]\s+processed in \[([^\]]+)\]\s+ms.*')
+
+PROCESS_START_LOG_MESSAGES = ["start processing msg", "start processing message"]
+PROCESSED_LOG_MESSAGES = [" processed in "]
 
 class ElasticsearchProxy:
     """This class performs a message id lookup on the ELK log server to determine which machine the msg was processed on"""
@@ -25,6 +37,7 @@ class ElasticsearchProxy:
     def __init__(self):
         self.successfully_initialised = False
         self.configuration = ConfigSingleton()
+        self.file_output_service = FileOutputFormatter()
         username = self.configuration.get(CREDENTIALS).get(ELASTICSEARCH_CREDENTIALS).get(USERNAME)
         password = self.configuration.get(CREDENTIALS).get(ELASTICSEARCH_CREDENTIALS).get(PASSWORD)
         host = self.configuration.get(ELASTICSEARCH_HOST)
@@ -49,27 +62,38 @@ class ElasticsearchProxy:
             logger.error("Elasticsearch connection not successfully initialised, aborting lookup request!")
             return None
         logger.info("Attempt search of message: {} on elasticsearch server".format(message_uid))
+        # Initial search by msg unique id
         es_json_query = self._prepare_elastic_search_query(message_uid, payloads_list)
-        elasticsearch_results = self._get_elasticsearch_results(es_json_query)
+        elasticsearch_results = self._handle_paginated_results(es_json_query)
+        self.file_output_service.output_json_data_to_file(message_uid, DataType.elastic_search_results_correlated, elasticsearch_results)
+        # filter out the message correlation ids, hosts and logs files
         result_record = self._process_es_message_uid_search_results(message_uid, elasticsearch_results)
 
         # do we have a correlation id, if so then rerun the search with it to get matching log statements
-        if LOG_CORRELATION_ID in result_record and result_record[LOG_CORRELATION_ID]:
-            log_correlation_id = result_record[LOG_CORRELATION_ID]
-            logger.info("Attempting to fetch correlated log statements from elasticsearch")
-            self._update_search_record_with_search_term(log_correlation_id, es_json_query)
-            self._prepare_query_for_timestamp_desc_sort(es_json_query)
-            log_lines_result = self._get_elasticsearch_results(es_json_query)
-            if log_lines_result:
-                log_lines = self._process_log_statments(log_lines_result)
-                if log_lines:
-                    result_record[LOG_LINES] = log_lines
+        statement_type_counts = {}
+        if HOST_LOG_CORRELATION_ID in result_record and result_record[HOST_LOG_CORRELATION_ID]:
+            for current_host in result_record[HOST_LOG_CORRELATION_ID]:
+                for current_host_logfile in result_record[HOST_LOG_CORRELATION_ID][current_host]:
+                    unique_correlation_ids = set(result_record[HOST_LOG_CORRELATION_ID][current_host][current_host_logfile])
+                    # filelog_correlation_ids = result_record[HOST_LOG_CORRELATION_ID]
+                    logger.info("Attempting to fetch correlated log statements from elasticsearch for host: {} and logfile: {}".format(current_host, current_host_logfile))
+                    self._update_search_record_with_multiple_search_terms(unique_correlation_ids, es_json_query)
+                    self._prepare_query_for_log_retrieval_sorting(es_json_query)
+                    log_lines_result = self._handle_paginated_results(es_json_query)
+                    # Dump out the raw results
+                    es_filename = self.file_output_service.generate_host_log_filename(message_uid, current_host, current_host_logfile, False)
+                    self.file_output_service.output_json_data_to_given_file(message_uid, es_filename, log_lines_result, DataType.elastic_search_results_correlated)
+                    # Write out the logs immediately to avoid large memory footprint
+                    log_lines_dict = {current_host: {current_host_logfile: self._process_log_statments(log_lines_result)}}
+                    self.file_output_service.generate_log_statements(message_uid, log_lines_dict, statement_type_counts)
+                # end for logfiles
+            # end for hosts
+        result_record[LOG_LINE_STATS] = statement_type_counts
         return result_record
 
-    def _get_elasticsearch_results(self, es_json_query):
+    def _get_elasticsearch_results(self, search_index, es_json_query):
         """Issues elasticsearch query and returns results issuing standard logs statements"""
-        search_index = self.configuration.get(ELASTICSEARCH_INDEX)
-        logger.info("Querying elastic search on index: {} with query: {}".format(search_index, json.dumps(es_json_query)))
+        logger.debug("Querying elastic search on index: {} with query: {}".format(search_index, json.dumps(es_json_query)))
         elasticsearch_results = self.es.search(index=search_index, body=es_json_query)
         if elasticsearch_results:
             logger.debug("Received %d Hits from elasticsearch query" % elasticsearch_results['hits']['total']['value'])
@@ -78,8 +102,50 @@ class ElasticsearchProxy:
             logger.debug("No results found for elastic search msg query")
         return None
 
+    def _handle_paginated_results(self, es_json_query):
+        elasticsearch_max_result_limit = self.configuration.get("elasticsearch_max_result_limit")
+        elasticsearch_batch_size = self.configuration.get("elasticsearch_batch_size")
+        search_index = self.configuration.get(ELASTICSEARCH_INDEX)
+        logger.debug("Handling elastic search paginated request on index: {}".format(search_index))
+        # Issue initial query
+        es_json_query["size"] = elasticsearch_batch_size
+        if "from" in es_json_query:
+            del es_json_query["from"]
+        intial_elasticsearch_results = self._get_elasticsearch_results(search_index, es_json_query)
+        # capture result set size
+        result_set_size = int(intial_elasticsearch_results['hits']['total']['value'])
+        # Do we have more records to fetch?
+        if result_set_size > elasticsearch_batch_size:
+            logger.debug("{} elastic search results received from a total of: {}".format(elasticsearch_batch_size, result_set_size))
+            cummulative_result_set = intial_elasticsearch_results
+            upper_bound = min(elasticsearch_max_result_limit, result_set_size)
+            for from_value in range(elasticsearch_batch_size, upper_bound, elasticsearch_batch_size):
+                es_json_query["from"] = from_value
+                es_json_query["size"] = elasticsearch_batch_size
+                logger.debug("Fetching elastic search results from postiion: {}".format(from_value))
+                intermediate_elasticsearch_results = self._get_elasticsearch_results(search_index, es_json_query)
+                if intermediate_elasticsearch_results and intermediate_elasticsearch_results["hits"]["hits"]:
+                    cummulative_result_set["hits"]["hits"].extend(intermediate_elasticsearch_results["hits"]["hits"])
+            return cummulative_result_set
+        else:
+            return intial_elasticsearch_results
+
     def _prepare_search_term(self, search_key):
-        return search_key.replace('-', ' ')
+        temp_term = search_key.replace('-', ' ')
+        temp_term = temp_term.replace('(', ' ')
+        temp_term = temp_term.replace(')', ' ')
+        return temp_term.strip()
+
+    def _obtain_all_correlation_ids(self, filelog_correlation_ids):
+        results = reduce(operator.concat, [list(filelog_correlation_ids[key]) for key in filelog_correlation_ids])
+        return results
+
+    def _update_search_record_with_multiple_search_terms(self, correlation_ids_list, query_json):
+        # correlation_ids_list = self._obtain_all_correlation_ids(filelog_correlation_ids)
+        correlation_query_list = [{"multi_match": {"query": self._prepare_search_term(cid), "fields": ["message"], "type": "phrase", "operator": "and"}} for cid in correlation_ids_list]
+        if "must" in query_json['query']['bool']:
+            del query_json['query']['bool']['must']
+        query_json['query']['bool']['should'] = correlation_query_list
 
     def _update_search_record_with_search_term(self, search_key, query_json):
         search_message_id = self._prepare_search_term(search_key)
@@ -90,7 +156,7 @@ class ElasticsearchProxy:
         if message_payloads:
             from_date = message_payloads[0].get('insertDate')
             to_date = message_payloads[-1].get('insertDate')
-            # logger.debug("search window from payloads is: from:    {}, to: {}".format(convert_timestamp_to_datetime_str(from_date), convert_timestamp_to_datetime_str(to_date)))
+            logger.debug("search window from payloads is: from:    {}, to: {}".format(convert_timestamp_to_datetime_str(from_date), convert_timestamp_to_datetime_str(to_date)))
             search_from_date, search_to_date = self._prepare_search_time_window(from_date, to_date)
             logger.debug("Search window after adding margin: from: {}, to: {}".format(search_from_date, search_to_date))
 
@@ -116,59 +182,91 @@ class ElasticsearchProxy:
         return format_datetime_to_zulu(from_date), format_datetime_to_zulu(to_date)
 
     @staticmethod
-    def _prepare_query_for_timestamp_desc_sort(query_json):
-        query_json['sort'] = [{ "@timestamp" : "asc" }]
+    def _prepare_query_for_timestamp_asc_sort(query_json):
+        query_json['sort'].insert(0, {"@timestamp": { "order" : "asc" }})
+
+
+    @staticmethod
+    def _prepare_query_for_score_desc_sort(query_json):
+        query_json['sort'].insert(0, {"_score": { "order" : "desc" }})
+
+    @staticmethod
+    def _prepare_query_for_log_retrieval_sorting(query_json):
+        query_json['sort'] = [
+            {"_score": { "order" : "desc" }},
+            {"@timestamp" : "asc"}
+        ]
 
     @staticmethod
     def _process_log_statments(es_log_lines_result):
         """Given the log statements from elasticsearch return a list of dicts with log level and log statement"""
-        log_lines = []
-        if es_log_lines_result:
-            for record in es_log_lines_result['hits']['hits']:
-                log_lines_dict = {}
-                if '_source' in record and record['_source']['message']:
-                    log_lines_dict[TIME] = record['_source'].get('@timestamp', '')
-                    log_lines_dict[LEVEL] = record['_source'].get('level', '')
-                    log_lines_dict[LINE] = record['_source'].get('message', '')
-                    log_lines.append(log_lines_dict)
-        return log_lines
+        return es_log_lines_result['hits']['hits']
 
-    @staticmethod
-    def _process_es_message_uid_search_results(message_uid, result):
+    def _process_es_message_uid_search_results(self, message_uid, result):
         """Given the message uid elasticsearch results, verify the data is for the correct uid and pull out host details etc"""
         result_dict = {MESSAGE_ID: message_uid}
         has_matched_message_uid = False
         host_location_lines = []
-        host_log_dict = {}
+        host_log_dict = defaultdict(list)
         if result:
-            output_es_results(message_uid, result)
+            self.file_output_service.output_json_data_to_file(message_uid, DataType.elastic_search_results, result)
             current_host = ""
-            # Pull out host and logfile names
-            for record in result['hits']['hits']:
+            # Only consider results with our exact msg uid
+            filtered_by_message_uid = [log_line for log_line in result['hits']['hits'] if '_source' in log_line and message_uid in log_line['_source']['message']]
+            if filtered_by_message_uid:
+                has_matched_message_uid = True
+
+            # Obtain all host and logfile values
+            for record in filtered_by_message_uid:
                 if record['_source']['host']:
                     current_host = record['_source']['host']['name']
                 if record['_source']['source']:
                     log_file_name = record['_source']['source']
                     if current_host and log_file_name:
-                        host_log_dict[current_host] = log_file_name
-                if '_source' in record and message_uid in record['_source']['message']:
-                    has_matched_message_uid = True
-                    # Attempt to find correlation id, we attempt to look for this start processing msg
-                    if "start processing msg" in record['_source']['message']:
-                        match = LOG_CORRELATION_REGEX.match(record['_source']['message'])
-                        if match and len(match.groups()) == 2:
-                            log_correlation_id = match.group(1)
-                            logger.info("Found log correlation id: {}".format(log_correlation_id))
-                            result_dict[LOG_CORRELATION_ID] = log_correlation_id
+                        host_log_dict[current_host].append(log_file_name)
             # End for
+
+            # Now obtain correlation_ids
+            correlation_results = self._parse_log_correlation_ids(message_uid, filtered_by_message_uid)
+            result_dict[HOST_LOG_CORRELATION_ID] = correlation_results
+
         result_dict[LOG_STATEMENT_FOUND] = has_matched_message_uid
-        # reformat the host and log data so that it can be formatted
-        if host_log_dict:
-            for k, v in host_log_dict.items():
-                host_location_lines.append({HOST: k, LOGFILE: v})
-            result_dict[HOST_LOG_MAPPINGS] = host_location_lines
-        logger.debug("List of host/logs for msg: {}".format(json.dumps(host_log_dict)))
+        result_dict[HOST_LOG_MAPPINGS] = self._prepare_host_to_logfile_records(host_log_dict)
+        logger.debug("List of host/logs for msg: {}".format(json.dumps(result_dict[HOST_LOG_MAPPINGS])))
         return result_dict
+
+    def _prepare_host_to_logfile_records(self, host_log_dict):
+        if host_log_dict:
+            return [{HOST: hostname, LOGFILE: logname} for hostname, logs_list in host_log_dict.items() for logname in set(logs_list)]
+        return None
+
+    def filter_log_statements(self, log_statement, filter_strings):
+        for start_search_term in filter_strings:
+            if start_search_term in log_statement["_source"]["message"]:
+                return True
+        return False
+
+    def _parse_log_correlation_ids(self, message_uid, result):
+        new_results_map = defaultdict(lambda: defaultdict(list))
+        filter_strings = PROCESS_START_LOG_MESSAGES + PROCESSED_LOG_MESSAGES
+        exclude_logs = self.configuration.get(ELASTICSEARCH_EXCLUDE_LOG_FILES)
+        filtered_log_lines = [record2 for record2 in [record for record in result if '_source' in record and message_uid in record['_source']['message']] if self.filter_log_statements(record2, filter_strings)]
+        for filtered_record in filtered_log_lines:
+            match = LOG_CORRELATION_REGEX.match(filtered_record['_source']['message'])
+            log_correlation_id = None
+            if match and len(match.groups()) == 2:
+                log_correlation_id = match.group(1)
+            else:
+                match = LOG_CORRELATION_END_REGEX.match(filtered_record['_source']['message'])
+                if match and len(match.groups()) == 4:
+                    log_correlation_id = match.group(1)
+            if log_correlation_id:
+                logfile = filtered_record['_source']['source']
+                if not logfile in exclude_logs:
+                    current_host = filtered_record['_source']['host']['name']
+                    # logger.debug("Found log correlation id: {} within log: {}".format(log_correlation_id, logfile))
+                    new_results_map[current_host][logfile].append(log_correlation_id)
+        return new_results_map
 
 
 def output_es_results(message_uid, results):
@@ -178,12 +276,51 @@ def output_es_results(message_uid, results):
 
 
 def main():
+    json_txt = """
+{
+  "/opt/logs/eu0000000002": [
+    "managed-in-transform(47b3eac)", "managed-out-transform(3f2e83ee)", "managed-send-transform(5e8a5443)"
+  ],
+  "/opt/logs/fr0000001236": [
+    "jcoserverthread-6@t-2ccbcdb6"
+  ],
+  "/opt/logs/uk0000000067": [
+    "eu-cirrus-mdm-feed@eu-cirrus-mdm(14ddad3f)"
+  ],
+  "/opt/logs/uk0000000052": [
+    "cirrus-fr0000001224-movement"
+  ]
+}
+
+ 
+    """
+    # sample_json = json.loads(json_txt)
+    # # flat_list = [item for sublist in sample_json for item in sublist]
+    # flat_list = [sample_json[key] for key in sample_json]
+    # l = reduce(operator.concat, flat_list)
+    # print(l)
+    # return
+    #
     config = ConfigSingleton(get_configuration_dict())
     es_proxy = ElasticsearchProxy()
-    # uid = "d3001b5a-ad37-4032-a91d-71d1ad5e4441"
-    uid = "8a3d3300-9d51-43c2-819b-4ca95bba1126"
-    result = es_proxy.lookup_message(uid, None)
+    uid = "d3001b5a-ad37-4032-a91d-71d1ad5e4441"
+    # # uid = "8a3d3300-9d51-43c2-819b-4ca95bba1126"
+    es_result_file = "es-output-d3001b5a-ad37-4032-a91d-71d1ad5e4441-2020-07-31-15-19-55.txt"
+    es_json = parse_json_from_file(es_result_file)
+    result = es_proxy._parse_log_correlation_ids(uid, es_json['hits']['hits'])
+    # result = es_proxy._prepare_log_correlation_ids(result)
+    # # es_proxy._process_es_message_uid_search_results(uid, es_json
+    # # result = es_proxy.lookup_message(uid, none)
     print(result)
+
+    # es_json = parse_json_from_file("resources/elastic_search_query_generated.json")
+    # # es_json = parse_json_from_file(es_query_file)
+    # results = es_proxy._handle_paginated_results(es_json)
+    # print(results)
+    # formatter = FileOutputFormatter()
+    # correlation_logs = {"/opt/logs/uk0000000052": "blah"}
+    # stats = formatter.generate_log_statements("123456", correlation_logs, results['hits']['hits'], True)
+    # print(stats)
 
 
 if __name__ == '__main__':
