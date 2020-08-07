@@ -138,6 +138,7 @@ class DataType(Enum):
     elastic_search_results = 16
     elastic_search_results_correlated = 17
 
+
 class DataRequisites(Enum):
     status = 0
     payloads = 1
@@ -153,10 +154,24 @@ class TransformStage(Enum):
     idoc = 3
 
 
+class OutputFormat(Enum):
+    json = 0
+    table = 1
+    csv = 2
+    file = 3
+
+
 # This is for custom data algorithms
 algorithm_data_type_map = {
     YARA_MOVEMENT_POST_JSON_ALGO: DataType.analysis_yara_movements,
     HAS_EMPTY_FIELDS_FOR_PAYLOAD: DataType.empty_fields_for_payload,
     HAS_MANDATORY_FIELDS_FOR_PAYLOAD: DataType.mandatory_fields_for_payload,
     TRANSFORM_BACKTRACE_FIELDS: DataType.transform_backtrace_fields
+}
+
+output_formats_to_extention_map = {
+    OutputFormat.json: ".json",
+    OutputFormat.csv: ".csv",
+    OutputFormat.table: ".txt",
+    OutputFormat.file: ".json"
 }

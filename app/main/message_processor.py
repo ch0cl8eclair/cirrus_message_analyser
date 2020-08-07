@@ -3,6 +3,8 @@ from main.config.constants import RULES, FUNCTION, OPTIONS, RULE, TIME, SEARCH_P
     DataType, NAME, UID, MSG_UID, MESSAGE_ID, LIMIT, ALGORITHMS, MESSAGE_STATUS, ALGORITHM_STATS, CACHE_REF, \
     YARA_MOVEMENT_POST_JSON_ALGO, HAS_EMPTY_FIELDS_FOR_PAYLOAD, ARGUMENTS, HAS_MANDATORY_FIELDS_FOR_PAYLOAD, \
     TRANSFORM_BACKTRACE_FIELDS, SOURCE, DESTINATION, TYPE, DataRequisites, FILE, OUTPUT
+from main.formatter.dual_formatter import LogAndFileFormatter
+from main.formatter.file_output import FileOutputFormatter
 
 from main.formatter.formatter import Formatter, AnalysisFormatter
 from main.http.cirrus_proxy import CirrusProxy, FailedToCommunicateWithCirrus
@@ -42,6 +44,8 @@ class MessageProcessor:
         self.run_algorithm_names = set() # set of all algorithms run
         self.algorithm_name_with_data = set() # set if all algorithms that have their own data run
         self.custom_algorithm_data = {} # Used to hold custom headings and other algorithm items
+        file_generator = FileOutputFormatter()
+        self.details_formatter = LogAndFileFormatter(self.formatter, file_generator, self.cirrus_proxy)
 
     def action_cli_request(self, cli_dict):
         """Take the cli arguments, validate them further and action them"""
@@ -101,8 +105,7 @@ class MessageProcessor:
             data_enricher.retrieve_data(data_fetch_set)
             data_enricher.add_transform_mappings()
             data_enricher.lookup_message_location_on_log_server()
-            self.formatter.current_message_uid = cli_dict.get(UID)
-            self.formatter.format_message_model(msg_model, options)
+            self.details_formatter.format_message_model(msg_model, options)
             return
 
         elif function_to_call == ANALYSE:

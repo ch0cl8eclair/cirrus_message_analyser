@@ -38,15 +38,15 @@ class PayloadTransformMapperTest(unittest.TestCase):
         self.assert_output_record(results, 9, None, None, None, None)
         self.assert_output_record(results, 10, None, None, None, None)
 
-    def assert_output_record(self, results, index, type, name, url, transform_type):
+    def assert_output_record(self, results, index, data_type, name, url, transform_type):
         self.assertEqual(self.payloads_list[index]["tracking-point"], results[index]["tracking-point"])
-        if not type:
+        if not data_type:
             self.assertFalse("type" in results[index])
             self.assertFalse("transform-step-name" in results[index])
             self.assertFalse("url" in results[index])
             self.assertFalse("transform-step-type" in results[index])
         else:
-            self.assertEqual(type, results[index]["type"])
+            self.assertEqual(data_type, results[index]["type"])
             self.assertEqual(name, results[index]["transform-step-name"])
             self.assertEqual(url, results[index]["url"])
             self.assertEqual(transform_type, results[index]["transform-step-type"])
