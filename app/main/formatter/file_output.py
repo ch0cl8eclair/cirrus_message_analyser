@@ -1,13 +1,14 @@
 import datetime
 import os.path
+from collections import Generator
 from os import path
 import logging
 from logging.config import fileConfig
 
 from main.config.configuration import get_configuration_dict, ConfigSingleton, LOGGING_CONFIG_FILE
 from main.config.constants import OUTPUT_FOLDER, DataType, LOGFILE, TOTAL_COUNT, ERROR_COUNT, HOST, LOG_CORRELATION_ID, \
-    ELASTICSEARCH_EXCLUDE_LOG_FILES
-from main.utils.utils import write_json_to_file, write_text_to_file
+    ELASTICSEARCH_EXCLUDE_LOG_FILES, output_formats_to_extention_map
+from main.utils.utils import write_json_to_file, write_text_to_file, write_single_text_to_file
 
 fileConfig(LOGGING_CONFIG_FILE)
 logger = logging.getLogger('main')
@@ -26,40 +27,45 @@ class FileOutputFormatter:
         if not path.exists(msg_path):
             os.mkdir(msg_path)
 
-    def get_filename_for_datatype(self, datatype):
+    def get_filename_for_datatype(self, datatype, output_format=None):
+        extention = output_formats_to_extention_map[output_format] if output_format else ".json"
+
         if datatype == DataType.config_rule:
-            return "config_rule.json"
+            file_name = "config_rule{}"
         elif datatype == DataType.cirrus_messages:
-            return "cirrus_message_details.json"
+            file_name = "cirrus_message_details{}"
         elif datatype == DataType.cirrus_payloads:
-            return "cirrus_message_payloads.json"
+            file_name = "cirrus_message_payloads{}"
         elif datatype == DataType.cirrus_metadata:
-            return "cirrus_message_metadata.json"
+            file_name = "cirrus_message_metadata{}"
         elif datatype == DataType.cirrus_events:
-            return "cirrus_message_event.json"
+            file_name = "cirrus_message_event{}"
         elif datatype == DataType.cirrus_transforms:
-            return "cirrus_message_transforms.json"
+            file_name = "cirrus_message_transforms{}"
         elif datatype == DataType.payload_transform_mappings:
-            return "payload_transform_mappings.json"
+            file_name = "payload_transform_mappings{}"
+        elif datatype == DataType.cirrus_transforms_steps:
+            file_name = "payload_transform_steps{}"
         elif datatype == DataType.host_log_mappings:
-            return "host_log_mappings.json"
+            file_name = "host_log_mappings{}"
         elif datatype == DataType.elastic_search_results:
             timestamp = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
-            return f'es-output-uid-{timestamp}.json'
+            file_name = f'es-output-uid-{timestamp}' + "{}"
         elif datatype == DataType.elastic_search_results_correlated:
             timestamp = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
-            return f'es-output-correlated-{timestamp}.json'
+            file_name = f'es-output-correlated-{timestamp}' + "{}"
         else:
             return None
+        return file_name.format(extention)
 
     def _get_log_output_filename(self, source_log_filename):
         base_log_file_name = os.path.basename(source_log_filename)
         return "{}".format(base_log_file_name)
 
-    def generate_host_log_filename(self, message_uid, hostname, current_log_file, isLog=True):
+    def generate_host_log_filename(self, message_uid, hostname, current_log_file, is_log=True):
         base_log_filename = self._get_log_output_filename(current_log_file)
-        extention = "log" if isLog else "json"
-        prefix = "" if isLog else "es-log-search-"
+        extention = "log" if is_log else "json"
+        prefix = "" if is_log else "es-log-search-"
         filename = "{}{}-{}.{}".format(prefix, hostname.replace('.', '-'), base_log_filename, extention)
         self.setup_message_uid_output_folder(message_uid)
         return filename
@@ -72,18 +78,50 @@ class FileOutputFormatter:
         else:
             logger.error("Failed to map datatype:{} to filename for output".format(str(data_type)))
 
-    def output_json_data_to_given_file(self, message_uid, filename, data, data_type=None):
+    def _get_file_path_from_components(self, message_uid, filename):
         filepath = os.path.join(*[item for item in [self.base_output_director, message_uid, filename] if item])
+        return filepath
+
+    def output_json_data_to_given_file(self, message_uid, filename, data, data_type=None):
+        filepath = self._get_file_path_from_components(message_uid, filename)
         self._output_json_data_to_file(filepath, data_type, data)
 
     def _output_json_data_to_file(self, filepath, data_type, data):
         if filepath.endswith(".json"):
             pretty_print = False
-            if data_type and data_type in [DataType.config_rule, DataType.payload_transform_mappings, DataType.host_log_mappings]:
+            if data_type and data_type in [DataType.config_rule, DataType.payload_transform_mappings, DataType.cirrus_transforms_steps, DataType.host_log_mappings, DataType.cirrus_messages]:
                 pretty_print = True
             write_json_to_file(filepath, data, pretty_print)
         else:
             write_text_to_file(filepath, data)
+
+    def output_text_to_file(self, message_uid, base_filename, text):
+        filepath = self._get_filepath_output(message_uid, base_filename, "xsl")
+        write_single_text_to_file(filepath, text)
+
+    def _get_filepath_output(self, message_uid, filename, data_type_log_str):
+        filepath = self._get_file_path_from_components(message_uid, filename)
+        self.setup_message_uid_output_folder(message_uid)
+        abs_path = os.path.abspath(filepath)
+        logger.debug("Outputting {} data to file: {}".format(data_type_log_str, abs_path))
+        return filepath
+
+    def output_logging_to_file(self, message_uid, data_type, data, output_format):
+        filename = self.get_filename_for_datatype(data_type, output_format)
+        if not filename:
+            logger.error("Failed to get filename for type: {}".format(data_type.name))
+        filepath = self._get_filepath_output(message_uid, filename, data_type.name)
+        # determine type: text or generator
+        if data:
+            if isinstance(data, Generator):
+                write_text_to_file(filepath, data)
+            elif isinstance(data, str):
+                write_single_text_to_file(filepath, data)
+            elif isinstance(data, list) or isinstance(data, dict):
+                write_json_to_file(filepath, data)
+                self._output_json_data_to_file(filepath, data_type, data)
+            else:
+                logger.warning("Unknown datatype passed for file-output, ignoring")
 
     def generate_log_statements(self, message_uid, log_lines, statement_type_counts, no_filtering=False):
         for host_name in log_lines:

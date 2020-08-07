@@ -54,6 +54,19 @@ def get_children_text(tag):
     return original_text
 
 
+def verify_superuser_dropdown_display(driver, username):
+    super_dropdown_menu = driver.find_element_by_id("topMenuForm:j_idt17_button")
+    if super_dropdown_menu:
+        span_elements = super_dropdown_menu.find_elements(By.TAG_NAME, 'span')
+        span_text = ",".join([e.text for e in span_elements])
+        if "Super" in span_text and username in span_text:
+            logger.info("Successfully switched to superuser")
+        else:
+            logger.warning("Unable to confirm switch to superuser, some functionality may not work")
+    else:
+        logger.error("Failed to find dropdown after switch to super user")
+
+
 def write_cookies_to_file_cache(config, cookies_str):
     config.get(CACHE_REF).set(CACHED_COOKIE, cookies_str, expire=MIN_30)
 
@@ -103,6 +116,7 @@ def obtain_cookies_from_cirrus_manually():
     configured_chrome_folder = config.get(CHROME_DRIVER_FOLDER)
     chrome_driver_dir = get_driver_folder_and_validate(configured_chrome_folder)
     chrome_driver_file = get_driver_file_and_validate(chrome_driver_dir)
+    username = config.get(CREDENTIALS).get(CIRRUS_CREDENTIALS).get(USERNAME)
 
     # Connect driver
     driver = webdriver.Chrome(chrome_driver_file)
@@ -159,16 +173,14 @@ def obtain_cookies_from_cirrus_manually():
             super_user_link_by_text.click()
         else:
             logger.error("Failed to find super user link")
-
-        elements = dropdown_menu.find_elements(By.TAG_NAME, 'a')
-        for e in elements:
-            logger.debug("Found anchor {} with text: [{}]".format(e.id, get_children_text(e)))
     else:
         logger.error("Failed to find drop down menu")
 
     logger.debug("Cirrus URL now set to: {}".format(driver.current_url))
     logger.debug("Sleeping for 5 seconds")
     time.sleep(5)
+    verify_superuser_dropdown_display(driver, username)
+
     cirrus_super_user_cookie = "; ".join(["{}={}".format(cookie.get("name"), cookie.get("value")) for cookie in driver.get_cookies()])
     logger.debug("Obtained the Cirrus cookie: {}".format(cirrus_super_user_cookie))
     write_cookies_to_file_cache(config, cirrus_super_user_cookie)

@@ -73,8 +73,8 @@ def extract_search_parameters_from_message_detail(message_details):
     return None
 
 
-def get_algorithm_results_per_message(statistics_map, algorithm_name):
-    return [statistics_map[message_id][algorithm_name] for message_id in statistics_map.keys() if algorithm_name in statistics_map[message_id]]
+# def get_algorithm_results_per_message(statistics_map, algorithm_name):
+#     return [statistics_map[message_id][algorithm_name] for message_id in statistics_map.keys() if algorithm_name in statistics_map[message_id]]
 
 
 def get_algorithm_results_per_message(statistics_map, algorithm_name, func_to_call):

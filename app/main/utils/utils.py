@@ -2,6 +2,8 @@ import datetime
 import json
 import re
 import sys
+import os.path
+from os import path
 
 from main.config.constants import *
 
@@ -38,6 +40,12 @@ def write_text_to_file(filepath, lines_list):
     with open(filepath, 'w') as file_handler:
         for item in lines_list:
             file_handler.write(f"{item}\n")
+
+
+def write_single_text_to_file(filepath, text, force=False):
+    if not path.exists(filepath) or force:
+        with open(filepath, 'w') as file_handler:
+            file_handler.write(text)
 
 
 def convert_package_str_to_path_notation(package_dot_name):
@@ -116,13 +124,19 @@ def get_datetime_now_as_zulu():
     return format_datetime_to_zulu(datetime.datetime.utcnow())
 
 
-def clear_quotes(given_str):
-    return given_str.replace("'", "").replace('"', '')
-
-
 def convert_timestamp_to_datetime_str(timestamp):
     return format_datetime_to_zulu(convert_timestamp_to_datetime(timestamp))
 
 
 def convert_timestamp_to_datetime(timestamp):
     return datetime.datetime.utcfromtimestamp(timestamp/1e3)
+
+
+def clear_quotes(given_str):
+    return given_str.replace("'", "").replace('"', '')
+
+
+def convert_output_option_to_enum(options):
+    options.get(OUTPUT)
+    requested_output = OutputFormat[options.get(OUTPUT)]
+    return requested_output
