@@ -133,7 +133,7 @@ class FileOutputFormatter:
                 abs_path = os.path.abspath(filepath)
                 logger.debug("Outputting logging to file: {}".format(abs_path))
                 statement_type_counts[host_name][current_log_file] = {}
-                with open(filepath, 'w') as outfile:
+                with open(filepath, 'w', encoding="utf-8") as outfile:
                     for line in sorted(log_lines[host_name][current_log_file], key = lambda i: i.get('_source', {}).get("@timestamp", "")):
                         if line["_source"]["source"] == current_log_file or no_filtering:
                             level = line['_source'].get('level', '')

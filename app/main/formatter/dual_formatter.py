@@ -137,7 +137,7 @@ class LogAndFileFormatter:
             # generate filename within output folder
             parsed_link = urlparse(url)
             base_filename = parsed_link.path.split('/')[-1]
-            if base_filename and base_filename.endswith(".xsl"):
+            if base_filename and (base_filename.endswith(".xsl") or base_filename.endswith(".xsd")):
                 self.file_generator.output_text_to_file(message_uid, base_filename, xsl_data)
             else:
                 logger.error("Unable to download url to file as file name is invalid: [{}]".format(base_filename))
