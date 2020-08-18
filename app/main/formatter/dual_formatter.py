@@ -91,7 +91,7 @@ class LogAndFileFormatter:
                 self._format_to_log_and_file(message_uid, data_type, data, options)
 
                 # Obtain xsl urls from data and have each downloaded and save to file
-                xsl_urls_list = [item ["url"] for item in data if "url" in item]
+                xsl_urls_list = [item["url"] for item in data if "url" in item and item["url"]]
                 self._download_xsl_files(message_uid, xsl_urls_list)
                 
             if message_model.has_server_location:
@@ -138,7 +138,7 @@ class LogAndFileFormatter:
             parsed_link = urlparse(url)
             base_filename = parsed_link.path.split('/')[-1]
             if base_filename and (base_filename.endswith(".xsl") or base_filename.endswith(".xsd")):
-                self.file_generator.output_text_to_file(message_uid, base_filename, xsl_data)
+                self.file_generator.output_text_to_file(message_uid, base_filename, xsl_data, "transform")
             else:
                 logger.error("Unable to download url to file as file name is invalid: [{}]".format(base_filename))
 
@@ -150,7 +150,7 @@ class LogAndFileFormatter:
             payload_data = payload_item["payload"]
             filtered_tracking_point = make_safe_for_filename(tracking_point)
             filename = f"payload-{filtered_tracking_point}-{payload_id}.dat"
-            self.file_generator.output_text_to_file(message_uid, filename, payload_data)
+            self.file_generator.output_text_to_file(message_uid, filename, payload_data, "payload")
 
     def has_invalid_url_character(self, url):
         for invalid_char in ["{", "}"]:

@@ -168,7 +168,7 @@ def obtain_cookies_from_cirrus_manually():
         super_user_link = dropdown_menu.find_element_by_css_selector('a[class*="ui-menuitem-link ui-corner-all"]')
         logger.debug("Found link with text: [{}]".format(super_user_link.text))
         super_user_link_by_text = driver.find_element(By.LINK_TEXT, "Switch to Super")
-        logger.debug(super_user_link_by_text)
+        # logger.debug(super_user_link_by_text)
         if super_user_link_by_text:
             super_user_link_by_text.click()
         else:

@@ -1,4 +1,7 @@
-from main.model.model_utils import get_transform_step_from_payload, translate_step_type_to_payload_type
+from main.config.constants import VALIDATE, TRANSFORM
+from main.model.model_utils import get_transform_step_from_payload, translate_step_type_to_payload_type, \
+    SuspectedMissingTransformsException, get_matching_transform_step, \
+    obtain_transform_details_from_payload_tracking_point
 
 
 class PayloadTransformMapper:
@@ -9,12 +12,26 @@ class PayloadTransformMapper:
         self.transforms = transforms
         self.mapping_records = []
 
+    def reset(self, transforms):
+        self.transforms = transforms
+        self.mapping_records = []
+
     def map(self):
         if not self.payloads:
             return
+        missing_transforms = 0
         for current_payload in self.payloads:
-            transform_step = get_transform_step_from_payload(current_payload, self.transforms)
+            transform_details_tuple = obtain_transform_details_from_payload_tracking_point(current_payload)
+            if transform_details_tuple:
+                stage_type, transform_name, transform_step_name = transform_details_tuple
+                transform_step = get_matching_transform_step(self.transforms, stage_type, transform_name, transform_step_name)
+                if not transform_step and stage_type in [TRANSFORM, VALIDATE]:
+                    missing_transforms = missing_transforms + 1
+            else:
+                transform_step = None
             self.mapping_records.append(self._create_record(current_payload, transform_step))
+        if missing_transforms:
+            raise SuspectedMissingTransformsException()
 
     def get_records(self):
         return self.mapping_records

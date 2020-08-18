@@ -4,21 +4,21 @@ import re
 from main.algorithms import payload_predicates
 from main.algorithms.payload_predicates import *
 from main.config.constants import TRACKING_POINT, SEARCH_PARAMETERS, TYPE, DESTINATION, SOURCE, MESSAGE_STATUS, \
-    ALGORITHM_STATS, MESSAGE_ID, algorithm_data_type_map
+    ALGORITHM_STATS, MESSAGE_ID, algorithm_data_type_map, TRANSFORM, VALIDATE, ID
 
 
 def translate_step_type_to_payload_type(step_type):
     if step_type in ["XALAN", "XMLJSON"]:
-        return "TRANSFORM"
+        return TRANSFORM
     elif step_type == "XSD":
-        return "VALIDATE"
-    return "TRANSFORM"
+        return VALIDATE
+    return TRANSFORM
 
 
 def is_valid_step_type(payload_transform_step_type, transform_step):
-    if payload_transform_step_type == "TRANSFORM" and transform_step.get("transform-step-type") in ["XALAN", "XMLJSON"]:
+    if payload_transform_step_type == TRANSFORM and transform_step.get("transform-step-type") in ["XALAN", "XMLJSON"]:
         return True
-    elif payload_transform_step_type == "VALIDATE" and transform_step.get("transform-step-type") == "XSD":
+    elif payload_transform_step_type == VALIDATE and transform_step.get("transform-step-type") == "XSD":
         return True
     return False
 
@@ -43,6 +43,16 @@ def get_transform_step_from_payload(payload, transforms):
     return None
 
 
+def obtain_transform_details_from_payload_tracking_point(payload):
+    transform_stage = payload.get("tracking-point")
+    match = re.match(r'^(\w+)\s*-\s*(.*)\((.*)\)$', transform_stage)
+    if match:
+        stage_type = match.group(1)
+        transform_name = match.group(2)
+        transform_step_name = match.group(3)
+        return stage_type, transform_name, transform_step_name
+    return None
+
 def get_payload_index(stage_name, payloads_list):
     for index, current_payload in enumerate(payloads_list):
         if current_payload.get(TRACKING_POINT) == stage_name:
@@ -65,6 +75,33 @@ def get_transform_search_parameters(cfg_rule):
     else:
         raise MissingConfigException("Failed to obtain search parameters to query Cirrus for transforms")
     return search_parameters
+
+
+def explode_search_criteria(search_criteria_dict):
+    return search_criteria_dict.get(SOURCE, "*"), search_criteria_dict.get(DESTINATION, "*"), search_criteria_dict.get(TYPE, "*")
+
+
+def filter_transforms(search_criteria_dict, transform_data):
+    source, destination, message_type = explode_search_criteria(search_criteria_dict)
+    filtered_list = []
+    processed_transform_ids = set()
+    if transform_data:
+        original_length = len(transform_data)
+        for current_transform in transform_data:
+            # TODO need to make sure this works correctly with Cirrus data, may need to use substring matching instead
+            if current_transform[TYPE] != message_type:
+                continue
+            if current_transform[SOURCE] not in [source, "*"]:
+                continue
+            if current_transform[DESTINATION] not in [destination, "*"]:
+                continue
+            if current_transform[ID] in processed_transform_ids:
+                continue
+            filtered_list.append(current_transform)
+            processed_transform_ids.add(current_transform[ID])
+        filtered_length = len(filtered_list)
+        logger.info(f"Filtered transforms list from {original_length} to {filtered_length} for source: {source}, destination: {destination} and message type: {message_type}")
+    return filtered_list
 
 
 def extract_search_parameters_from_message_detail(message_details):
@@ -154,3 +191,6 @@ class MissingPayloadException(Exception):
         return "Failed to parse payload for message as it was None"
 
 
+class SuspectedMissingTransformsException(Exception):
+    def __str__(self):
+        return "Suspected missing transforms, please retrieve with wider parameters"

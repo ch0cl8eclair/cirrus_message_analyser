@@ -8,7 +8,7 @@ from logging.config import fileConfig
 
 from main.http.elk_proxy import ElasticsearchProxy
 from main.model.model_utils import get_transform_search_parameters, InvalidStateException, \
-    extract_search_parameters_from_message_detail
+    extract_search_parameters_from_message_detail, SuspectedMissingTransformsException
 
 fileConfig(LOGGING_CONFIG_FILE)
 logger = logging.getLogger('main')
@@ -74,12 +74,14 @@ class MessageEnricher:
         self.message.add_metadata(result)
 
     def __retrieve_message_transforms(self):
+        # Obtain transform search parameters
         if self.message.has_rule:
             search_parameters = get_transform_search_parameters(self.message.rule)
         elif self.message.message_uid:
             self.__retrieve_message_by_id()
             # we probably have the search parameters now if the request was successful
             search_parameters = self.message.search_criteria
+        # Obtain transforms
         if search_parameters:
             result = self.cirrus_proxy.get_transforms_for_message(search_parameters)
             # In case we don't get another with a source & destination search, then do separate searches
@@ -90,7 +92,7 @@ class MessageEnricher:
             logger.error("Failed to retrieve message transforms as we do not have rule search criteria or message details")
 
     def __retrieve_transforms_per_channel(self):
-        logger.warning("No transforms found for combined transform search, now attempting to search against separate channels")
+        logger.warning("Insufficient transforms found for combined transform search, now attempting to search against separate channels")
         search_parameters = self.message.search_criteria
         combined_result = []
         for key in [DESTINATION, SOURCE]:
@@ -101,6 +103,10 @@ class MessageEnricher:
             if channel_transform_result:
                 combined_result.extend(channel_transform_result)
         return combined_result
+
+    def __retrieve_and_update_wider_transforms(self):
+        result = self.__retrieve_transforms_per_channel()
+        self.message.add_transforms(result)
 
     def __retrieve_message_by_id(self):
         result = None
@@ -122,7 +128,15 @@ class MessageEnricher:
     def add_transform_mappings(self):
         """Adds payload to transform mappings data structure to the message model"""
         mapper = PayloadTransformMapper(self.message.payloads_list, self.message.transforms_list)
-        mapper.map()
+        try:
+            mapper.map()
+        except SuspectedMissingTransformsException:
+            self.__retrieve_and_update_wider_transforms()
+            mapper.reset(self.message.transforms_list)
+            try:
+                mapper.map()
+            except SuspectedMissingTransformsException:
+                logger.warning("Failing to retrieve all transforms, please verify payload tracking endpoints against transforms")
         self.message.add_payload_transform_mappings(mapper.get_records())
 
     def lookup_message_location_on_log_server(self):

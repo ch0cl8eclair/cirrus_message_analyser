@@ -95,8 +95,8 @@ class FileOutputFormatter:
         else:
             write_text_to_file(filepath, data)
 
-    def output_text_to_file(self, message_uid, base_filename, text):
-        filepath = self._get_filepath_output(message_uid, base_filename, "xsl")
+    def output_text_to_file(self, message_uid, base_filename, text, file_type="xls"):
+        filepath = self._get_filepath_output(message_uid, base_filename, file_type)
         write_single_text_to_file(filepath, text)
 
     def _get_filepath_output(self, message_uid, filename, data_type_log_str):
