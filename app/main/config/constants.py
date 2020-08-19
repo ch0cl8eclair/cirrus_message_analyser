@@ -117,6 +117,9 @@ OUTPUT_FOLDER = "output_folder"
 ERROR_COUNT = "errors"
 TOTAL_COUNT = "totals"
 
+TRANSFORM = "TRANSFORM"
+VALIDATE = "VALIDATE"
+
 
 # Declaring these enums here to avoid circular reference issues, that are such a pain
 class DataType(Enum):

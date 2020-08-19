@@ -22,7 +22,7 @@ logger = logging.getLogger('parser')
 
 """
 This class is a special analyser that is closely coupled to cirrus datastructures
-Cirrus stores all payloads against a msg id with a tracking-point field, this field can should the transform step executed eg:
+Cirrus stores all payloads against a msg id with a tracking-point field, this field can show the transform step executed eg:
     IN
     TRANSFORM - Movement - COP(Extension Replacement)
     TRANSFORM - Movement - COP(IDOC to F4Fv5 XML)
@@ -37,7 +37,7 @@ Cirrus stores all payloads against a msg id with a tracking-point field, this fi
  
 Now we are just interested in the Transform payloads above as these show the payload post transform. The text also helps us to
 identify the exact transform step as defined in Cirrus.
-Transforms are stored by source, destination and msg type. The have a Channel, with each channel have a number of steps.
+Transforms are stored by source, destination and msg type. They have a Channel, with each channel having a number of steps.
 Each step too has a name and a reference to a xsl file. We are interested in this xsl file to obtain the the field mapping.
 
 So what do we do:
@@ -267,7 +267,7 @@ class TransformStagesAnalyser:
         return transform_stage and STEP in transform_stage and self._is_xslt_transform_step(transform_stage[STEP])
 
     def _is_xslt_transform_step(self, transform_step):
-        return transform_step and transform_step.get(TRANSFORM_STEP_TYPE) == "XALAN"
+        return transform_step and transform_step.get(TRANSFORM_STEP_TYPE) in [XALAN, SAXON]
 
     def _get_xsl_transform_url(self, transform_stage):
         if transform_stage and STEP in transform_stage and URL in transform_stage[STEP]:

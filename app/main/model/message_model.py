@@ -3,6 +3,7 @@ from logging.config import fileConfig
 
 from main.config.configuration import LOGGING_CONFIG_FILE
 from main.config.constants import UNIQUE_ID, TYPE, SEARCH_PARAMETERS
+from main.model.model_utils import filter_transforms, MissingConfigException
 
 fileConfig(LOGGING_CONFIG_FILE)
 logger = logging.getLogger('main')
@@ -52,14 +53,9 @@ class Message:
         self.has_payloads = True
 
     def add_transforms(self, transform_data):
-        # filter transforms by message type, and movement search will return movement and movementCancellation
-        filter_type = self.__get_msg_type_search_parameter()
-        if filter_type:
-            original_length = len(transform_data)
-            # TODO need to make sure this works correctly with Cirrus data, may need to use substring matching instead
-            self.transforms_list = [transform for transform in transform_data if transform[TYPE] == filter_type]
-            filtered_length = len(self.transforms_list)
-            logger.info(f"Filtered transforms list from {original_length} to {filtered_length} for filter type: {filter_type}")
+        # filter transforms to only include the relevant ones
+        if self.has_transform_search_parameters():
+            self.transforms_list = filter_transforms(self.get_transform_search_criteria(), transform_data)
         # Add all transforms if there is no filter defined
         else:
             self.transforms_list = transform_data
@@ -83,3 +79,17 @@ class Message:
     def add_server_location(self, location_dict):
         self.server_location_dict = location_dict
         self.has_server_location = True
+
+    def has_transform_search_parameters(self):
+        if self.has_search_criteria:
+            return True
+        if self.has_rule and self.rule and self.rule.get(SEARCH_PARAMETERS):
+            return True
+        return False
+
+    def get_transform_search_criteria(self):
+        if self.has_search_criteria:
+            return self.search_criteria
+        if self.has_rule and self.rule and self.rule.get(SEARCH_PARAMETERS):
+            return self.rule.get(SEARCH_PARAMETERS)
+        raise MissingConfigException("Search criteria or rule not set")
