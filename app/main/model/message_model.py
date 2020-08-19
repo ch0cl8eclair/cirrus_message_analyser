@@ -69,13 +69,6 @@ class Message:
         self.payload_transform_mappings = mappings
         self.has_payload_transform_mappings = True
 
-    def __get_msg_type_search_parameter(self):
-        if self.has_rule and self.rule and self.rule.get(SEARCH_PARAMETERS) and TYPE in self.rule.get(SEARCH_PARAMETERS):
-            return self.rule.get(SEARCH_PARAMETERS)[TYPE]
-        elif self.has_search_criteria:
-            return self.search_criteria[TYPE]
-        return None
-
     def add_server_location(self, location_dict):
         self.server_location_dict = location_dict
         self.has_server_location = True

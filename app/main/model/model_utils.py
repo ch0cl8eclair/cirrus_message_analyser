@@ -38,6 +38,15 @@ def get_matching_transform_step(transforms, stage_type, transform_name, transfor
     return None
 
 
+def get_matching_transform_and_step(transforms, stage_type, transform_name, transform_step_name):
+    for current_transform in transforms:
+        if current_transform.get("transform-name") == transform_name:
+            for current_step in current_transform.get("transform-steps"):
+                if current_step.get("transform-step-name") == transform_step_name and is_valid_step_type(stage_type, current_step):
+                    return current_transform, current_step
+    return None, None
+
+
 def get_transform_step_from_payload(payload, transforms):
     transform_stage = payload.get("tracking-point")
     match = re.match(r'^(\w+)\s*-\s*(.*)\((.*)\)$', transform_stage)

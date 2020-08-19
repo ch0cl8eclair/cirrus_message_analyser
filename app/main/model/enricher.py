@@ -127,7 +127,7 @@ class MessageEnricher:
 
     def add_transform_mappings(self):
         """Adds payload to transform mappings data structure to the message model"""
-        mapper = PayloadTransformMapper(self.message.payloads_list, self.message.transforms_list)
+        mapper = PayloadTransformMapper(self.message.payloads_list, self.message.transforms_list, self.cirrus_proxy)
         try:
             mapper.map()
         except SuspectedMissingTransformsException:
