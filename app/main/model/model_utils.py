@@ -6,9 +6,15 @@ from main.algorithms.payload_predicates import *
 from main.config.constants import TRACKING_POINT, SEARCH_PARAMETERS, TYPE, DESTINATION, SOURCE, MESSAGE_STATUS, \
     ALGORITHM_STATS, MESSAGE_ID, algorithm_data_type_map, TRANSFORM, VALIDATE, ID
 
+XALAN = "XALAN"
+SAXON = "SAXON"
+XMLJSON = "XMLJSON"
+JSONXML = "JSONXML"
+TRANSFORM_TYPES_LIST = [XALAN, SAXON, XMLJSON, JSONXML]
+
 
 def translate_step_type_to_payload_type(step_type):
-    if step_type in ["XALAN", "XMLJSON"]:
+    if step_type in TRANSFORM_TYPES_LIST:
         return TRANSFORM
     elif step_type == "XSD":
         return VALIDATE
@@ -16,7 +22,7 @@ def translate_step_type_to_payload_type(step_type):
 
 
 def is_valid_step_type(payload_transform_step_type, transform_step):
-    if payload_transform_step_type == TRANSFORM and transform_step.get("transform-step-type") in ["XALAN", "XMLJSON"]:
+    if payload_transform_step_type == TRANSFORM and transform_step.get("transform-step-type") in TRANSFORM_TYPES_LIST:
         return True
     elif payload_transform_step_type == VALIDATE and transform_step.get("transform-step-type") == "XSD":
         return True
@@ -52,6 +58,7 @@ def obtain_transform_details_from_payload_tracking_point(payload):
         transform_step_name = match.group(3)
         return stage_type, transform_name, transform_step_name
     return None
+
 
 def get_payload_index(stage_name, payloads_list):
     for index, current_payload in enumerate(payloads_list):
@@ -108,10 +115,6 @@ def extract_search_parameters_from_message_detail(message_details):
     if message_details and len(message_details) >= 1:
         return {key: message_details[0].get(key, None) for key in [SOURCE, DESTINATION, TYPE]}
     return None
-
-
-# def get_algorithm_results_per_message(statistics_map, algorithm_name):
-#     return [statistics_map[message_id][algorithm_name] for message_id in statistics_map.keys() if algorithm_name in statistics_map[message_id]]
 
 
 def get_algorithm_results_per_message(statistics_map, algorithm_name, func_to_call):

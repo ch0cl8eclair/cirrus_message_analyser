@@ -267,7 +267,7 @@ class TransformStagesAnalyser:
         return transform_stage and STEP in transform_stage and self._is_xslt_transform_step(transform_stage[STEP])
 
     def _is_xslt_transform_step(self, transform_step):
-        return transform_step and transform_step.get(TRANSFORM_STEP_TYPE) == "XALAN"
+        return transform_step and transform_step.get(TRANSFORM_STEP_TYPE) in [XALAN, SAXON]
 
     def _get_xsl_transform_url(self, transform_stage):
         if transform_stage and STEP in transform_stage and URL in transform_stage[STEP]:
