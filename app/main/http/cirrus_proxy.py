@@ -73,6 +73,11 @@ class CirrusProxy:
         self.__store_cache(cache_key, response.text, WEEK)
         return response.text
 
+    def check_if_valid_url(self, url):
+        logger.debug("Issuing simple head request: {}".format(url))
+        response = requests.head(url)
+        return response.status_code == requests.codes["ok"]
+
     def __issue_cirrus_get_request(self, url):
         logger.debug("Issuing get request: {}".format(url))
         cache_key = self.__generate_cache_key(url)
