@@ -44,6 +44,6 @@
   "elasticsearch_seconds_margin": 2,
   "elasticsearch_batch_size": 500,
   "elasticsearch_max_result_limit": 10000,
-  "elasticsearch_exclude_log_files": ["/opt/logs/eu0000000001", "/opt/logs/uk0000000067", "/opt/logs/eu0000000004"],
+  "elasticsearch_exclude_log_files": ["/opt/logs/eu0000000001", "/opt/logs/eu0000000004", "/opt/logs/uk0000000001", "/opt/logs/uk0000000067", "/opt/logs/uk0000000075"],
   "output_folder": "../output"
 }

@@ -9,6 +9,8 @@ from logging.config import fileConfig
 
 from elasticsearch import Elasticsearch
 
+from main.algorithms.payload_operations import determine_message_playback_count_from_payloads, \
+    get_final_message_processing_time_window
 from main.config.configuration import ConfigSingleton, LOGGING_CONFIG_FILE, get_configuration_dict
 from main.config.constants import ELASTICSEARCH_CREDENTIALS, CREDENTIALS, \
     USERNAME, PASSWORD, ELASTICSEARCH_HOST, ELASTICSEARCH_SCHEME, ELASTICSEARCH_PORT, ELASTICSEARCH_INDEX, MESSAGE_ID, \
@@ -151,15 +153,23 @@ class ElasticsearchProxy:
         search_message_id = self._prepare_search_term(search_key)
         query_json['query']['bool']['must'][0]['multi_match']['query'] = search_message_id
 
-    def _prepare_elastic_search_query(self, message_uid, message_payloads):
-        # format values for search purposes
+    def _get_time_window_dates_from_payloads(self, message_payloads):
+        """Gets the elk logs search window from the payloads, taking into consideration how many times the msg has been processed"""
+        search_from_date, search_to_date = (None, None)
         if message_payloads:
-            from_date = message_payloads[0].get('insertDate')
-            to_date = message_payloads[-1].get('insertDate')
+            # Determine how many times the message has been through the system
+            message_repeat_count = determine_message_playback_count_from_payloads(message_payloads)
+            logger.info("Message has gone through the system {} time(s), only considering final pass through time window".format(message_repeat_count))
+            # Only get the logs for the last processing on the message:
+            from_date, to_date = get_final_message_processing_time_window(message_payloads, message_repeat_count)
             logger.debug("search window from payloads is: from:    {}, to: {}".format(convert_timestamp_to_datetime_str(from_date), convert_timestamp_to_datetime_str(to_date)))
             search_from_date, search_to_date = self._prepare_search_time_window(from_date, to_date)
             logger.debug("Search window after adding margin: from: {}, to: {}".format(search_from_date, search_to_date))
+        return search_from_date, search_to_date
 
+    def _prepare_elastic_search_query(self, message_uid, message_payloads):
+        # obtain and format values for search purposes
+        search_from_date, search_to_date = self._get_time_window_dates_from_payloads(message_payloads)
         # Read query string and update
         query_json = parse_json_from_file(ES_QUERY_FILE)
         self._update_search_record_with_search_term(message_uid, query_json)

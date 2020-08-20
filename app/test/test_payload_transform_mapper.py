@@ -2,6 +2,7 @@ import json
 import os
 import unittest
 from main.algorithms.payload_transform_mapper import PayloadTransformMapper
+from test.test_utils import read_json_data_file
 
 PAYLOAD_FILE = os.path.join(os.path.dirname(__file__), './resources/yara_movement_post_error_payloads.json')
 TRANSFORM_FILE = os.path.join(os.path.dirname(__file__), './resources/yara_msg_transforms.json')
@@ -11,16 +12,11 @@ class PayloadTransformMapperTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        with open(PAYLOAD_FILE, 'r') as myfile:
-            payload_data = myfile.read()
-        cls.payloads_list = json.loads(payload_data)
-
-        with open(TRANSFORM_FILE, 'r') as transformfile:
-            transform_data = transformfile.read()
-        cls.transforms_list = json.loads(transform_data)
+        cls.payloads_list = read_json_data_file(PAYLOAD_FILE)
+        cls.transforms_list = read_json_data_file(TRANSFORM_FILE)
 
     def test_map(self):
-        sut = PayloadTransformMapper(self.payloads_list, self.transforms_list)
+        sut = PayloadTransformMapper(self.payloads_list, self.transforms_list, MockCirrusProxy())
         sut.map()
         results = sut.get_records()
         self.assertEqual(11, len(self.payloads_list))
@@ -50,6 +46,11 @@ class PayloadTransformMapperTest(unittest.TestCase):
             self.assertEqual(name, results[index]["transform-step-name"])
             self.assertEqual(url, results[index]["url"])
             self.assertEqual(transform_type, results[index]["transform-step-type"])
+
+
+class MockCirrusProxy:
+    def check_if_valid_url(self, url):
+        return True
 
 
 if __name__ == '__main__':

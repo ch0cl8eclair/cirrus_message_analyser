@@ -44,7 +44,7 @@ def write_text_to_file(filepath, lines_list):
 
 def write_single_text_to_file(filepath, text, force=False):
     if not path.exists(filepath) or force:
-        with open(filepath, 'w') as file_handler:
+        with open(filepath, 'w', encoding="utf-8") as file_handler:
             file_handler.write(text)
 
 

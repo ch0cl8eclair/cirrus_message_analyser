@@ -107,9 +107,9 @@ def filter_transforms(search_criteria_dict, transform_data):
             # TODO need to make sure this works correctly with Cirrus data, may need to use substring matching instead
             if current_transform[TYPE] != message_type:
                 continue
-            if current_transform[SOURCE] not in [source, "*"]:
+            if current_transform[SOURCE] not in [source, "*", "xx0000000000"]:
                 continue
-            if current_transform[DESTINATION] not in [destination, "*"]:
+            if current_transform[DESTINATION] not in [destination, "*", "xx0000000000"]:
                 continue
             if current_transform[ID] in processed_transform_ids:
                 continue
