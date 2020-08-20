@@ -156,7 +156,7 @@ class Formatter:
         elif data_type == DataType.cirrus_transforms:
             return ["insertDate"]
         elif data_type == DataType.cirrus_messages:
-            return ["insertDate"]
+            return ["insertDate", "message-date"]
         return None
 
     @staticmethod
@@ -170,7 +170,7 @@ class Formatter:
                 data_obj = data_obj.get(current_field)
             iteration = iteration + 1
         # Do we have data, check the last field obtained is a date and format it out
-        if translatable_date_fields_list and data_obj and current_field[-1] in translatable_date_fields_list:
+        if translatable_date_fields_list and data_obj and current_field and current_field in translatable_date_fields_list:
             return convert_timestamp_to_datetime_str(data_obj)
         return data_obj
 

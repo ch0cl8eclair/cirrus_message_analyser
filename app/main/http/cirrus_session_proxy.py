@@ -18,7 +18,7 @@ from main.config.constants import CREDENTIALS, USERNAME, PASSWORD, CHROME_DRIVER
 from main.utils.utils import error_and_exit
 
 fileConfig(LOGGING_CONFIG_FILE)
-logger = logging.getLogger('main')
+logger = logging.getLogger('selenium')
 
 
 DRIVER_ERROR_MSG = "Chrome driver does not exist, please install into drivers directory and set config variable: {}, or set env variable".format(CHROME_DRIVER_FOLDER)
@@ -118,6 +118,7 @@ def obtain_cookies_from_cirrus_manually():
     chrome_driver_file = get_driver_file_and_validate(chrome_driver_dir)
     username = config.get(CREDENTIALS).get(CIRRUS_CREDENTIALS).get(USERNAME)
 
+    logger.info("Attempting to login into Cirrus website to obtain superuser cookies")
     # Connect driver
     driver = webdriver.Chrome(chrome_driver_file)
     web_url = config.get(CIRRUS_CONNECT_WEB_URL)
@@ -162,7 +163,7 @@ def obtain_cookies_from_cirrus_manually():
                 logger.error("Failed to find div popup blocking click")
             driver.find_element_by_id("topMenuForm:j_idt17_button").click()
 
-    logger.info("Attempting to change user")
+    logger.info("login successful, attempting to switch to super user")
     dropdown_menu = driver.find_element_by_id("topMenuForm:j_idt17_menu")
     if dropdown_menu:
         super_user_link = dropdown_menu.find_element_by_css_selector('a[class*="ui-menuitem-link ui-corner-all"]')
@@ -183,6 +184,7 @@ def obtain_cookies_from_cirrus_manually():
 
     cirrus_super_user_cookie = "; ".join(["{}={}".format(cookie.get("name"), cookie.get("value")) for cookie in driver.get_cookies()])
     logger.debug("Obtained the Cirrus cookie: {}".format(cirrus_super_user_cookie))
+    logger.info("Successfully obtained super user cookie for Cirrus API access")
     write_cookies_to_file_cache(config, cirrus_super_user_cookie)
     driver.close()
 

@@ -1,8 +1,11 @@
 import unittest
 import json
+import os
 from json import JSONDecoder
 
-from main.algorithms.payload_operations import get_missing_movement_line_fields_for_payload
+from main.algorithms.payload_operations import get_missing_movement_line_fields_for_payload, \
+    determine_message_playback_count_from_payloads
+from test.test_utils import read_json_data_file
 
 JSON_MOVEMENT_POST = """
   {
@@ -26,6 +29,9 @@ JSON_MOVEMENT_POST = """
   }
 """
 
+REPEATED_PAYLOAD_FILE = os.path.join(os.path.dirname(__file__), './resources/cirrus_message_payloads-repeated.json')
+SINGLE_RUN_PAYLOAD_FILE = os.path.join(os.path.dirname(__file__), './resources/yara_movement_post_error_payloads.json')
+
 
 class PayloadOperationsTest(unittest.TestCase):
 
@@ -35,6 +41,16 @@ class PayloadOperationsTest(unittest.TestCase):
         self.assertEqual(1, len(result.keys()))
         self.assertTrue(1 in result.keys())
         self.assertEqual(["order_qty", "order_uom"], result[1])
+
+    def test_determine_message_playback_count_from_payloads_multiple(self):
+        payloads_list = read_json_data_file(REPEATED_PAYLOAD_FILE)
+        result = determine_message_playback_count_from_payloads(payloads_list)
+        self.assertEqual(2, result)
+
+    def test_determine_message_playback_count_from_payloads_single(self):
+        payloads_list = read_json_data_file(SINGLE_RUN_PAYLOAD_FILE)
+        result = determine_message_playback_count_from_payloads(payloads_list)
+        self.assertEqual(1, result)
 
 
 if __name__ == '__main__':
