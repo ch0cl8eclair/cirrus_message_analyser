@@ -4,7 +4,7 @@ import os
 from json import JSONDecoder
 
 from main.algorithms.payload_operations import get_missing_movement_line_fields_for_payload, \
-    determine_message_playback_count_from_payloads
+    determine_message_playback_count_from_payloads, get_final_message_processing_time_window
 from test.test_utils import read_json_data_file
 
 JSON_MOVEMENT_POST = """
@@ -51,6 +51,16 @@ class PayloadOperationsTest(unittest.TestCase):
         payloads_list = read_json_data_file(SINGLE_RUN_PAYLOAD_FILE)
         result = determine_message_playback_count_from_payloads(payloads_list)
         self.assertEqual(1, result)
+
+    def test_get_final_message_processing_time_window_multiple(self):
+        payloads_list = read_json_data_file(REPEATED_PAYLOAD_FILE)
+        result = get_final_message_processing_time_window(payloads_list, 2)
+        self.assertEqual((1597912556000, 1597912558000), result)
+
+    def test_get_final_message_processing_time_window_single(self):
+        payloads_list = read_json_data_file(SINGLE_RUN_PAYLOAD_FILE)
+        result = get_final_message_processing_time_window(payloads_list, 1)
+        self.assertEqual((1590763133000, 1590763134000), result)
 
 
 if __name__ == '__main__':
