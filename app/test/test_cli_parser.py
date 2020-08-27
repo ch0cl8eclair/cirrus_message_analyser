@@ -10,7 +10,7 @@ class CommandLineParserTest(unittest.TestCase):
 
     def test_list_messages(self):
         cli_cmd = """cmc.py list messages --rule YARA_MOVEMENTS_BASIC --time 1d"""
-        expected = {'function': 'list_messages', 'rule': 'YARA_MOVEMENTS_BASIC', 'time': '1d', 'options': {'output': 'csv', 'quiet': False, 'verbose': False}}
+        expected = {'function': 'list_messages', 'rule': 'YARA_MOVEMENTS_BASIC', 'time': '1d', 'options': {'output': 'table', 'quiet': False, 'verbose': False}}
         self.assertEqual(expected, self.call_sut_func(cli_cmd))
 
     def test_list_messages_as_csv(self):
@@ -25,52 +25,52 @@ class CommandLineParserTest(unittest.TestCase):
 
     def test_list_messages_verbose(self):
         cli_cmd = """cmc.py -v list messages --rule YARA_MOVEMENTS_BASIC --time 1d"""
-        expected = {'function': 'list_messages', 'rule': 'YARA_MOVEMENTS_BASIC', 'time': '1d', 'options': {'output': 'csv', 'quiet': False, 'verbose': True}}
+        expected = {'function': 'list_messages', 'rule': 'YARA_MOVEMENTS_BASIC', 'time': '1d', 'options': {'output': 'table', 'quiet': False, 'verbose': True}}
         self.assertEqual(expected, self.call_sut_func(cli_cmd))
 
     def test_list_messages_quiet(self):
         cli_cmd = """cmc.py -q list messages --rule YARA_MOVEMENTS_BASIC --time 1d"""
-        expected = {'function': 'list_messages', 'rule': 'YARA_MOVEMENTS_BASIC', 'time': '1d', 'options': {'output': 'csv', 'quiet': True, 'verbose': False}}
+        expected = {'function': 'list_messages', 'rule': 'YARA_MOVEMENTS_BASIC', 'time': '1d', 'options': {'output': 'table', 'quiet': True, 'verbose': False}}
         self.assertEqual(expected, self.call_sut_func(cli_cmd))
 
     def test_list_message_payloads(self):
         cli_cmd = """cmc.py list message-payloads --uid 324324-23434-3423423"""
-        expected = {'function': 'list_message_payloads', 'uid': '324324-23434-3423423', 'options': {'output': 'csv', 'quiet': False, 'verbose': False}}
+        expected = {'function': 'list_message_payloads', 'uid': '324324-23434-3423423', 'options': {'output': 'table', 'quiet': False, 'verbose': False}}
         self.assertEqual(expected, self.call_sut_func(cli_cmd))
 
     def test_list_message_events(self):
         cli_cmd = """cmc.py list message-events --uid 324324-23434-3423423"""
-        expected = {'function': 'list_message_events', 'uid': '324324-23434-3423423', 'options': {'output': 'csv', 'quiet': False, 'verbose': False}}
+        expected = {'function': 'list_message_events', 'uid': '324324-23434-3423423', 'options': {'output': 'table', 'quiet': False, 'verbose': False}}
         self.assertEqual(expected, self.call_sut_func(cli_cmd))
 
     def test_list_message_metadata(self):
         cli_cmd = """cmc.py list message-metadata --uid 324324-23434-3423424"""
-        expected = {'function': 'list_message_metadata', 'uid': '324324-23434-3423424', 'options': {'output': 'csv', 'quiet': False, 'verbose': False}}
+        expected = {'function': 'list_message_metadata', 'uid': '324324-23434-3423424', 'options': {'output': 'table', 'quiet': False, 'verbose': False}}
         self.assertEqual(expected, self.call_sut_func(cli_cmd))
 
     def test_list_message_transforms(self):
         cli_cmd = """cmc.py list message-transforms --uid 324324-23434-3423422"""
-        expected = {'function': 'list_message_transforms', 'uid': '324324-23434-3423422', 'options': {'output': 'csv', 'quiet': False, 'verbose': False}}
+        expected = {'function': 'list_message_transforms', 'uid': '324324-23434-3423422', 'options': {'output': 'table', 'quiet': False, 'verbose': False}}
         self.assertEqual(expected, self.call_sut_func(cli_cmd))
 
     def test_analyse_message(self):
         cli_cmd = """cmc.py analyse --uid 324324-23434-3423423"""
-        expected = {'function': 'analyse', 'uid': '324324-23434-3423423', 'options': {'output': 'csv', 'quiet': False, 'verbose': False}}
+        expected = {'function': 'analyse', 'uid': '324324-23434-3423423', 'options': {'output': 'table', 'quiet': False, 'verbose': False}}
         self.assertEqual(expected, self.call_sut_func(cli_cmd))
 
     def test_analyse_messages(self):
         cli_cmd = """cmc.py analyse --rule YARA_MOVEMENTS_BASIC --time yesterday"""
-        expected = {'function': 'analyse', 'rule': 'YARA_MOVEMENTS_BASIC', 'time': 'yesterday', 'options': {'output': 'csv', 'quiet': False, 'verbose': False}}
+        expected = {'function': 'analyse', 'rule': 'YARA_MOVEMENTS_BASIC', 'time': 'yesterday', 'options': {'output': 'table', 'quiet': False, 'verbose': False}}
         self.assertEqual(expected, self.call_sut_func(cli_cmd))
 
     def test_analyse_messages_with_limit(self):
         cli_cmd = """cmc.py analyse --rule YARA_MOVEMENTS_BASIC --time yesterday --limit 1"""
-        expected = {'function': 'analyse', 'rule': 'YARA_MOVEMENTS_BASIC', 'time': 'yesterday', 'limit': 1, 'options': {'output': 'csv', 'quiet': False, 'verbose': False}}
+        expected = {'function': 'analyse', 'rule': 'YARA_MOVEMENTS_BASIC', 'time': 'yesterday', 'limit': 1, 'options': {'output': 'table', 'quiet': False, 'verbose': False}}
         self.assertEqual(expected, self.call_sut_func(cli_cmd))
 
     def test_detail_message(self):
         cli_cmd = """cmc.py detail --uid 324324-23434-3423423"""
-        expected = {'function': 'detail', 'uid': '324324-23434-3423423', 'options': {'output': 'csv', 'quiet': False, 'verbose': False}}
+        expected = {'function': 'detail', 'uid': '324324-23434-3423423', 'options': {'output': 'table', 'quiet': False, 'verbose': False}}
         self.assertEqual(expected, self.call_sut_func(cli_cmd))
 
     def test_detail_message_file_output(self):
@@ -80,12 +80,17 @@ class CommandLineParserTest(unittest.TestCase):
 
     def test_list_rules(self):
         cli_cmd = """cmc.py list rules"""
-        expected = {'function': 'list_rules', 'options': {'output': 'csv', 'quiet': False, 'verbose': False}}
+        expected = {'function': 'list_rules', 'options': {'output': 'table', 'quiet': False, 'verbose': False}}
         self.assertEqual(expected, self.call_sut_func(cli_cmd))
 
     def test_clear_cache(self):
         cli_cmd = """cmc.py clear-cache"""
-        expected = {'function': 'clear-cache', 'options': {'output': 'csv', 'quiet': False, 'verbose': False}}
+        expected = {'function': 'clear-cache', 'options': {'output': 'table', 'quiet': False, 'verbose': False}}
+        self.assertEqual(expected, self.call_sut_func(cli_cmd))
+
+    def test_get_logs(self):
+        cli_cmd = """cmc.py get-logs --uid 324324-23434-3423423 --start-datetime 2020-08-19T10:05:16.000Z --end-datetime 2020-08-19T10:05:19.000Z"""
+        expected = {'function': 'get-logs', 'uid': '324324-23434-3423423', 'start-datetime': '2020-08-19T10:05:16.000Z', 'end-datetime': '2020-08-19T10:05:19.000Z', 'options': {'output': 'table', 'quiet': False, 'verbose': False}}
         self.assertEqual(expected, self.call_sut_func(cli_cmd))
 
 

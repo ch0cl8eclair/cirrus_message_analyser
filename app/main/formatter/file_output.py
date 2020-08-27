@@ -154,11 +154,13 @@ class FileOutputFormatter:
             current_logfile = server_array_item[LOGFILE]
             if exclude_logs and current_logfile in exclude_logs:
                 continue
+            # Given that we search es using a set, we should use a set for results output also
+            unique_correlation_ids = set(host_log_correlation_ids.get(host, {}).get(current_logfile, []))
             combined_output = {HOST: host,
                                      LOGFILE: current_logfile,
                                      TOTAL_COUNT: log_level_counts.get(host, {}).get(current_logfile, {}).get(TOTAL_COUNT, 0),
                                      ERROR_COUNT: log_level_counts.get(host, {}).get(current_logfile, {}).get(ERROR_COUNT, 0),
-                                     LOG_CORRELATION_ID: ', '.join(host_log_correlation_ids.get(host, {}).get(current_logfile, []))}
+                                     LOG_CORRELATION_ID: ', '.join(unique_correlation_ids)}
             results.append(combined_output)
         return results
 

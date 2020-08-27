@@ -15,7 +15,8 @@ from main.config.configuration import ConfigSingleton, LOGGING_CONFIG_FILE, get_
 from main.config.constants import ELASTICSEARCH_CREDENTIALS, CREDENTIALS, \
     USERNAME, PASSWORD, ELASTICSEARCH_HOST, ELASTICSEARCH_SCHEME, ELASTICSEARCH_PORT, ELASTICSEARCH_INDEX, MESSAGE_ID, \
     HOST, LOGFILE, HOST_LOG_MAPPINGS, ELASTICSEARCH_SECONDS_MARGIN, \
-    LOG_STATEMENT_FOUND, DataType, ELASTICSEARCH_EXCLUDE_LOG_FILES, HOST_LOG_CORRELATION_ID, LOG_LINE_STATS
+    LOG_STATEMENT_FOUND, DataType, ELASTICSEARCH_EXCLUDE_LOG_FILES, HOST_LOG_CORRELATION_ID, LOG_LINE_STATS, \
+    ELASTICSEARCH_RETAIN_SERVER_OUTPUT
 from main.formatter.file_output import FileOutputFormatter
 from main.utils.utils import parse_json_from_file, format_datetime_to_zulu, convert_timestamp_to_datetime_str, \
     convert_timestamp_to_datetime
@@ -32,6 +33,7 @@ LOG_CORRELATION_END_REGEX = re.compile(r'^\[([^\[]+)\]\s+\[([^\]]+)\]\s+message 
 
 PROCESS_START_LOG_MESSAGES = ["start processing msg", "start processing message"]
 PROCESSED_LOG_MESSAGES = [" processed in "]
+
 
 class ElasticsearchProxy:
     """This class performs a message id lookup on the ELK log server to determine which machine the msg was processed on"""
@@ -59,18 +61,21 @@ class ElasticsearchProxy:
         except Exception as ex:
             logger.error("Failed to initialise connection to elasticsearch", ex)
 
-    def lookup_message(self, message_uid, payloads_list):
-        if not self.successfully_initialised:
-            logger.error("Elasticsearch connection not successfully initialised, aborting lookup request!")
-            return None
-        logger.info("Attempt search of message: {} on elasticsearch server".format(message_uid))
-        # Initial search by msg unique id
-        es_json_query = self._prepare_elastic_search_query(message_uid, payloads_list)
-        elasticsearch_results = self._handle_paginated_results(es_json_query)
-        self.file_output_service.output_json_data_to_file(message_uid, DataType.elastic_search_results_correlated, elasticsearch_results)
-        # filter out the message correlation ids, hosts and logs files
-        result_record = self._process_es_message_uid_search_results(message_uid, elasticsearch_results)
+    def _retain_es_server_output(self):
+        if self.configuration.has_key(ELASTICSEARCH_RETAIN_SERVER_OUTPUT):
+            return bool(self.configuration.get(ELASTICSEARCH_RETAIN_SERVER_OUTPUT))
+        return True
 
+    def _lookup_initial_message_results_grouped_by_host(self, message_uid, es_json_query):
+        logger.info("Attempt search of message: {} on elasticsearch server".format(message_uid))
+        elasticsearch_results = self._handle_paginated_results(es_json_query)
+        if self._retain_es_server_output():
+            self.file_output_service.output_json_data_to_file(message_uid, DataType.elastic_search_results_correlated, elasticsearch_results)
+        # filter out the message correlation ids, hosts and logs files
+        result_record = self._filter_by_exact_uid_and_group_by_host_and_logname(message_uid, elasticsearch_results)
+        return result_record
+
+    def _lookup_correlated_ids_for_message(self, message_uid, es_json_query, result_record):
         # do we have a correlation id, if so then rerun the search with it to get matching log statements
         statement_type_counts = {}
         if HOST_LOG_CORRELATION_ID in result_record and result_record[HOST_LOG_CORRELATION_ID]:
@@ -83,15 +88,33 @@ class ElasticsearchProxy:
                     self._prepare_query_for_log_retrieval_sorting(es_json_query)
                     log_lines_result = self._handle_paginated_results(es_json_query)
                     # Dump out the raw results
-                    es_filename = self.file_output_service.generate_host_log_filename(message_uid, current_host, current_host_logfile, False)
-                    self.file_output_service.output_json_data_to_given_file(message_uid, es_filename, log_lines_result, DataType.elastic_search_results_correlated)
+                    if self._retain_es_server_output():
+                        es_filename = self.file_output_service.generate_host_log_filename(message_uid, current_host, current_host_logfile, False)
+                        self.file_output_service.output_json_data_to_given_file(message_uid, es_filename, log_lines_result, DataType.elastic_search_results_correlated)
                     # Write out the logs immediately to avoid large memory footprint
-                    log_lines_dict = {current_host: {current_host_logfile: self._process_log_statments(log_lines_result)}}
+                    log_lines_dict = {current_host: {current_host_logfile: self._get_es_result_hits(log_lines_result)}}
                     self.file_output_service.generate_log_statements(message_uid, log_lines_dict, statement_type_counts)
                 # end for logfiles
             # end for hosts
         result_record[LOG_LINE_STATS] = statement_type_counts
         return result_record
+
+    def lookup_message_within_supplied_time_window(self, message_uid, start_time, end_time):
+        if not self.successfully_initialised:
+            logger.error("Elasticsearch connection not successfully initialised, aborting lookup request!")
+            return None
+        es_json_query = self._prepare_elastic_search_query(message_uid, start_time, end_time)
+        result_record = self._lookup_initial_message_results_grouped_by_host(message_uid, es_json_query)
+        return self._lookup_correlated_ids_for_message(message_uid, es_json_query, result_record)
+
+    def lookup_message(self, message_uid, payloads_list):
+        if not self.successfully_initialised:
+            logger.error("Elasticsearch connection not successfully initialised, aborting lookup request!")
+            return None
+        # Initial search by msg unique id
+        es_json_query = self._prepare_elastic_search_query_from_payloads(message_uid, payloads_list)
+        result_record = self._lookup_initial_message_results_grouped_by_host(message_uid, es_json_query)
+        return self._lookup_correlated_ids_for_message(message_uid, es_json_query, result_record)
 
     def _get_elasticsearch_results(self, search_index, es_json_query):
         """Issues elasticsearch query and returns results issuing standard logs statements"""
@@ -167,14 +190,18 @@ class ElasticsearchProxy:
             logger.debug("Search window after adding margin: from: {}, to: {}".format(search_from_date, search_to_date))
         return search_from_date, search_to_date
 
-    def _prepare_elastic_search_query(self, message_uid, message_payloads):
+    def _prepare_elastic_search_query_from_payloads(self, message_uid, message_payloads):
         # obtain and format values for search purposes
         search_from_date, search_to_date = self._get_time_window_dates_from_payloads(message_payloads)
+        return self._prepare_elastic_search_query(message_uid, search_from_date, search_to_date)
+
+    def _prepare_elastic_search_query(self, message_uid, search_from_date, search_to_date):
         # Read query string and update
         query_json = parse_json_from_file(ES_QUERY_FILE)
         self._update_search_record_with_search_term(message_uid, query_json)
-        if message_payloads:
+        if search_from_date:
             query_json['query']['bool']['filter'][0]['range']['@timestamp']['gte'] = search_from_date
+        if search_to_date:
             query_json['query']['bool']['filter'][0]['range']['@timestamp']['lte'] = search_to_date
         return query_json
 
@@ -182,10 +209,10 @@ class ElasticsearchProxy:
         """Given the from and to Cirrus timestamps time window add a little margin either side"""
         from_date = convert_timestamp_to_datetime(from_timestamp)
         to_date = convert_timestamp_to_datetime(to_timestamp)
-        # default to 45 if not specified
+        # default to 10 if not specified
         seconds_delta = self.configuration.get(ELASTICSEARCH_SECONDS_MARGIN)
         if not seconds_delta:
-            seconds_delta = 45
+            seconds_delta = 10
         time_delta = datetime.timedelta(seconds=seconds_delta)
         from_date = from_date - time_delta
         to_date = to_date + time_delta
@@ -208,18 +235,19 @@ class ElasticsearchProxy:
         ]
 
     @staticmethod
-    def _process_log_statments(es_log_lines_result):
+    def _get_es_result_hits(es_log_lines_result):
         """Given the log statements from elasticsearch return a list of dicts with log level and log statement"""
         return es_log_lines_result['hits']['hits']
 
-    def _process_es_message_uid_search_results(self, message_uid, result):
+    def _filter_by_exact_uid_and_group_by_host_and_logname(self, message_uid, result):
         """Given the message uid elasticsearch results, verify the data is for the correct uid and pull out host details etc"""
         result_dict = {MESSAGE_ID: message_uid}
         has_matched_message_uid = False
-        host_location_lines = []
+        # host_location_lines = []
         host_log_dict = defaultdict(list)
         if result:
-            self.file_output_service.output_json_data_to_file(message_uid, DataType.elastic_search_results, result)
+            if self._retain_es_server_output():
+                self.file_output_service.output_json_data_to_file(message_uid, DataType.elastic_search_results, result)
             current_host = ""
             # Only consider results with our exact msg uid
             filtered_by_message_uid = [log_line for log_line in result['hits']['hits'] if '_source' in log_line and message_uid in log_line['_source']['message']]

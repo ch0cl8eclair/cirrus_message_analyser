@@ -1,4 +1,5 @@
 import logging
+import re
 from logging.config import fileConfig
 from urllib.parse import urlparse
 
@@ -99,20 +100,25 @@ class LogAndFileFormatter:
                     server_data_uid = message_model.server_location_dict.get(MESSAGE_ID, '')
                     if message_uid != server_data_uid:
                         logger.error("We have a message uid mismatch between: {} & {}".format(message_uid, server_data_uid))
-                    host_log_correlation_ids = message_model.server_location_dict.get(HOST_LOG_CORRELATION_ID, '')
-                    has_log_uid_statements = bool(message_model.server_location_dict.get(LOG_STATEMENT_FOUND, 'False'))
-                    if has_log_uid_statements:
-                        log_level_counts = message_model.server_location_dict[LOG_LINE_STATS]
-                        if HOST_LOG_MAPPINGS in message_model.server_location_dict:
-                            self._add_log_message_heading("\nServer location(s) found on elasticsearch server for message uid: {}:".format(message_uid), options)
-                            enriched_log_summary_data = self.file_generator.enrich_log_summary_data(host_log_correlation_ids, message_model.server_location_dict[HOST_LOG_MAPPINGS], log_level_counts)
-                            self._format_to_log_and_file(message_uid, DataType.host_log_mappings, enriched_log_summary_data, options)
-                    else:
-                        message_logger.info("\nNo server logs found on elasticsearch server")
+                    self.format_server_log_details(message_uid, message_model.server_location_dict, options)
 
     def _add_log_message_heading(self, message, options):
         if options.get(OUTPUT, CSV) != FILE:
             message_logger.info(message)
+
+    def format_server_log_details(self, message_uid, server_log_dict, options):
+        if not server_log_dict:
+            logger.warning("No server log data found to output")
+        host_log_correlation_ids = server_log_dict.get(HOST_LOG_CORRELATION_ID, '')
+        has_log_uid_statements = bool(server_log_dict.get(LOG_STATEMENT_FOUND, 'False'))
+        if has_log_uid_statements:
+            log_level_counts = server_log_dict[LOG_LINE_STATS]
+            if HOST_LOG_MAPPINGS in server_log_dict:
+                self._add_log_message_heading("\nServer location(s) found on elasticsearch server for message uid: {}:".format(message_uid), options)
+                enriched_log_summary_data = self.file_generator.enrich_log_summary_data(host_log_correlation_ids, server_log_dict[HOST_LOG_MAPPINGS], log_level_counts)
+                self._format_to_log_and_file(message_uid, DataType.host_log_mappings, enriched_log_summary_data, options)
+        else:
+            message_logger.info("\nNo server logs found on elasticsearch server")
 
     def format_transform_sub_lists(self, transform_data, options):
         # We don't need to do this for JSON output
@@ -144,11 +150,19 @@ class LogAndFileFormatter:
 
     def download_payload_files(self, message_uid, data):
         """Writes each of the payload data items to file"""
-        for payload_item in data:
+        for index, payload_item in enumerate(data):
             tracking_point = payload_item["tracking-point"]
+            if tracking_point.startswith("BAD") or "." in tracking_point:
+                match = re.match(r'^(\w+)', tracking_point)
+                if match and match.groups():
+                    file_sub_name = "{}-{}".format(match.group(1), index)
+                else:
+                    file_sub_name = "{}-{}".format("Unknown", index)
+            else:
+                file_sub_name = tracking_point
             payload_id = payload_item["id"]
             payload_data = payload_item["payload"]
-            filtered_tracking_point = make_safe_for_filename(tracking_point)
+            filtered_tracking_point = make_safe_for_filename(file_sub_name)
             filename = f"payload-{filtered_tracking_point}-{payload_id}.dat"
             self.file_generator.output_text_to_file(message_uid, filename, payload_data, "payload")
 
