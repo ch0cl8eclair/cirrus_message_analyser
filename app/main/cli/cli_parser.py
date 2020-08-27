@@ -18,6 +18,7 @@ LIST = 'list'
 ANALYSE = 'analyse'
 CLEAR_CACHE = 'clear-cache'
 DETAIL = 'detail'
+GET_LOGS = "get-logs"
 
 output_types_list = [CSV, JSON, TABLE, FILE]
 
@@ -38,13 +39,13 @@ def create_parent_parser():
     parent_args_group = parser.add_mutually_exclusive_group()
     parent_args_group.add_argument("-v", "--verbose", action="store_true", default=False)
     parent_args_group.add_argument("-q", "--quiet", action="store_true", default=False)
-    parser.add_argument("-o", "--output", choices=output_types_list, default="csv", help="Select the output data format")
+    parser.add_argument("-o", "--output", choices=output_types_list, default="table", help="Select the output data format")
     return parser
 
 
 def create_command_parser(parent_parser):
     command_parser = argparse.ArgumentParser(description="Cirrus Message Analyser commands", parents=[parent_parser])
-    command_parser.add_argument("command", choices=[LIST, ANALYSE, CLEAR_CACHE, DETAIL])
+    command_parser.add_argument("command", choices=[LIST, ANALYSE, CLEAR_CACHE, DETAIL, GET_LOGS])
     help_str = "List command directives: {}".format(",".join(list_commands))
     command_parser.add_argument("command_parameters", metavar='N', nargs='?', help=help_str)
     command_parser.add_argument("--uid", help="Specify the message unique id")

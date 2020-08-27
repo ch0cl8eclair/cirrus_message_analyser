@@ -49,6 +49,8 @@ ALGORITHMS = "algorithms"
 
 START_DATETIME = "start-datetime"
 END_DATETIME = "end-datetime"
+START_DATE = "start-date"
+END_DATE = "end-date"
 
 CIRRUS_COOKIE = "cirrus_cookie"
 CACHED_COOKIE_FILE = os.path.join(os.path.dirname(__file__), '../../../cache/cirrus_cookies.txt')
@@ -100,6 +102,7 @@ ELASTICSEARCH_SCHEME = "elasticsearch_scheme"
 ELASTICSEARCH_INDEX = "elasticsearch_index"
 ELASTICSEARCH_SECONDS_MARGIN = "elasticsearch_seconds_margin"
 ELASTICSEARCH_EXCLUDE_LOG_FILES = "elasticsearch_exclude_log_files"
+ELASTICSEARCH_RETAIN_SERVER_OUTPUT = "elasticsearch_retain_server_output"
 
 HOST = "host"
 LOGFILE = "logfile"

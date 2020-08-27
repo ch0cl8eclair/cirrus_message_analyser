@@ -33,7 +33,7 @@
       "data_dict": { "current-only": true, "source": "", "destination": "", "type": ""}
     }
   ],
-  "chrome-driver-folder": "chromedriver83_win32",
+  "chrome-driver-folder": "chromedriver84_win32",
   "cirrus_connect_web_url": "https://cirrusconnect.eu.f4f.com/cirrus-connect/",
   "enable_selenium_login" : true,
   "enable_elasticsearch_query" : true,
@@ -44,6 +44,7 @@
   "elasticsearch_seconds_margin": 2,
   "elasticsearch_batch_size": 500,
   "elasticsearch_max_result_limit": 10000,
+  "elasticsearch_retain_server_output": false,
   "elasticsearch_exclude_log_files": ["/opt/logs/eu0000000001", "/opt/logs/eu0000000004", "/opt/logs/uk0000000001", "/opt/logs/uk0000000067", "/opt/logs/uk0000000075"],
   "output_folder": "../output"
 }

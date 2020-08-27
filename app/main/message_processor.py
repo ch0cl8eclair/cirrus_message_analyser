@@ -1,8 +1,8 @@
-from main.cli.cli_parser import ANALYSE, DETAIL
+from main.cli.cli_parser import ANALYSE, DETAIL, GET_LOGS
 from main.config.constants import RULES, FUNCTION, OPTIONS, RULE, TIME, SEARCH_PARAMETERS, START_DATETIME, END_DATETIME, \
     DataType, NAME, UID, MSG_UID, MESSAGE_ID, LIMIT, ALGORITHMS, MESSAGE_STATUS, ALGORITHM_STATS, CACHE_REF, \
     YARA_MOVEMENT_POST_JSON_ALGO, HAS_EMPTY_FIELDS_FOR_PAYLOAD, ARGUMENTS, HAS_MANDATORY_FIELDS_FOR_PAYLOAD, \
-    TRANSFORM_BACKTRACE_FIELDS, SOURCE, DESTINATION, TYPE, DataRequisites, FILE, OUTPUT
+    TRANSFORM_BACKTRACE_FIELDS, SOURCE, DESTINATION, TYPE, DataRequisites, FILE, OUTPUT, START_DATE, END_DATE
 from main.formatter.dual_formatter import LogAndFileFormatter
 from main.formatter.file_output import FileOutputFormatter
 
@@ -106,6 +106,15 @@ class MessageProcessor:
             data_enricher.add_transform_mappings()
             data_enricher.lookup_message_location_on_log_server()
             self.details_formatter.format_message_model(msg_model, options)
+            return
+
+        elif function_to_call == GET_LOGS:
+            if UID not in cli_dict:
+                error_and_exit("Message unique id must be provided for this request")
+            message_uid = cli_dict.get(UID)
+            self.__validate_time_window(cli_dict, search_parameters)
+            log_details = self.cirrus_proxy.lookup_message_within_supplied_time_window(message_uid, search_parameters.get("start-date", None), search_parameters.get("end-date", None))
+            self.formatter.format_server_log_details(message_uid, log_details, options)
             return
 
         elif function_to_call == ANALYSE:
@@ -247,7 +256,7 @@ class MessageProcessor:
                 search_parameters.update(time_params)
             except ValueError as err:
                 error_and_exit(str(err))
-            logger.info("Adding time window to search of start-date: {}, end-date: {}".format(time_params.get("start-date"), time_params.get("end-date")))
+            logger.info("Adding time window to search of start-date: {}, end-date: {}".format(time_params.get(START_DATE), time_params.get(END_DATE)))
         else:
             # handle start and end times
             # if we just have start then set now as end time
