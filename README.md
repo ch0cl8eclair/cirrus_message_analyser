@@ -98,6 +98,14 @@ Detail a single message, useful to gain initial insights, the command will also 
 ```
 cmc.py detail --uid <message unique id> --output table
 ```
+Obtain webpack for ICE Dashboard listed msg (it will zip up the logs, note the date format is a copy & paste from the dashboard)
+```
+cmc.py webpack --uid 324324-23434-3423424 --start-date "2020-11-23 13:13:40 GMT"
+```
+Obtain webpack for Cirrus listed msg (note the different ISO date format)
+```
+cmc.py webpack --uid 324324-23434-3423424 --start-date 2020-05-17T10:30:08.877Z --end-date 2020-05-17T10:31:18.312Z
+```
 
 List the configured rules
 ```
