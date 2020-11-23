@@ -23,6 +23,8 @@ class Message:
         self.has_payload_transform_mappings = False
         self.message_uid = None
         self.has_server_location = False
+        self.has_ice_dashboard_stats = True
+        self.has_ice_failed_messages = False
 
     def add_rule(self, rule):
         self.rule = rule
@@ -35,6 +37,9 @@ class Message:
 
     def add_message_uid(self, msg_uid):
         self.message_uid = msg_uid
+
+    def add_message_region(self, region):
+        self.message_region = region
 
     def add_message_details(self, message_details_data):
         self.message_details = message_details_data
@@ -72,6 +77,14 @@ class Message:
     def add_server_location(self, location_dict):
         self.server_location_dict = location_dict
         self.has_server_location = True
+
+    def add_ice_dashboard_stats(self, dashboard_stats):
+        self.ice_dashboard_stats = dashboard_stats
+        self.has_ice_dashboard_stats = True
+
+    def add_ice_failed_messages(self, messages):
+        self.ice_failed_messages = messages
+        self.has_ice_failed_messages = True
 
     def has_transform_search_parameters(self):
         if self.has_search_criteria:

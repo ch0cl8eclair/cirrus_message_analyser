@@ -1,6 +1,11 @@
 {
   "urls": [
     {
+      "name": "CIRRUS_LOGIN",
+      "type": "GET",
+      "url": "https://cirrusconnect.eu.f4f.com/cirrus-connect/"
+    },
+    {
       "name": "SEARCH_MESSAGES",
       "type": "POST",
       "url": "https://cirrusconnect.eu.f4f.com/cirrus-connect/rest/tracking/message/search",
@@ -31,20 +36,88 @@
       "type": "POST",
       "url": "https://cirrusconnect.eu.f4f.com/cirrus-connect/rest/workbench/transform/search",
       "data_dict": { "current-only": true, "source": "", "destination": "", "type": ""}
+    },
+    {
+      "name": "ADM_LOGIN",
+      "type": "GET",
+      "url": "http://device.agb.rbxd.ds/ice/index.php"
+    },
+    {
+      "name": "ADM_SUBMIT",
+      "type": "POST",
+      "url": "http://device.agb.rbxd.ds/ice/index.php?login"
+    },
+    {
+      "name": "ADM_LOCATIONS",
+      "type": "GET",
+      "url": "http://device.agb.rbxd.ds/ice/adm/view_location.php?module=ADM&side=4&subside=3"
+    },
+    {
+      "name": "ADM_VERSIONS",
+      "type": "GET",
+      "url": "http://device.agb.rbxd.ds/ice/adm/view_versions.php?module=ADM&side=2"
+    },
+    {
+      "name": "ADM_SCRIPTS",
+      "type": "GET",
+      "url": "http://device.agb.rbxd.ds/ice/adm/view_scripts.php?module=ADM&side=4&subside=4"
+    },
+    {
+      "name": "ADM_CONFIGS",
+      "type": "GET",
+      "url": "http://device.agb.rbxd.ds/ice/adm/view_config.php?module=ADM&side=4&subside=2"
+    },
+    {
+      "name": "ADM_ARTIFACTS",
+      "type": "GET",
+      "url": "http://device.agb.rbxd.ds/ice/adm/view_artifacts.php?module=ADM&side=3&subside=2"
+    },
+    {
+      "name": "ADM_ARTIFACTS_STATUS",
+      "type": "GET",
+      "url": "http://device.agb.rbxd.ds/ice/adm/view_status.php?module=ADM&side=3&id={}&project={}"
+    },
+    {
+      "name": "ICE_LOGIN",
+      "type": "GET",
+      "url": "https://iceprd.adaptris.net/ice/"
+    },
+    {
+      "name": "ICE_SUBMIT",
+      "type": "POST",
+      "url": "https://iceprd.adaptris.net/ice/index.php?login"
+    },
+    {
+      "name": "ICE_CALM_DASHBOARD",
+      "type": "GET",
+      "url": "https://iceprd.adaptris.net/ice/calm/calm_dash.php?module=calm&side=1&subside=1"
+    },
+    {
+      "name": "ICE_FAILED_MESSAGES",
+      "type": "GET",
+      "url": "https://iceprd.adaptris.net/ice/calm/list_failevents.php?community={}&module=calm&side=1&subside=3"
     }
   ],
-  "chrome-driver-folder": "chromedriver84_win32",
-  "cirrus_connect_web_url": "https://cirrusconnect.eu.f4f.com/cirrus-connect/",
-  "enable_selenium_login" : true,
-  "enable_elasticsearch_query" : true,
+  "adm-projects": [
+    {
+      "name": "proagrica-network",
+      "projects": ["access-api", "alert-handler-api", "journey-manager-api", "address-resolver", "address-scorer", "warehouse-api", "traffic-manager-api", "traffic-manager-ui", "members-directory-api", "members-directory-ui", "address-resolver-ui"]
+    }
+  ],
+  "chrome-driver-folder": "chromedriver86_win32",
+  "enable_selenium_login": true,
+  "enable_elasticsearch_query": true,
   "elasticsearch_host": "elasticsearch-prd.adaptris.net",
   "elasticsearch_port": "443",
   "elasticsearch_scheme": "https",
   "elasticsearch_index": "filebeat-*",
   "elasticsearch_seconds_margin": 2,
+  "elasticsearch_seconds_margin_for_ice": 10,
   "elasticsearch_batch_size": 500,
   "elasticsearch_max_result_limit": 10000,
   "elasticsearch_retain_server_output": false,
   "elasticsearch_exclude_log_files": ["/opt/logs/eu0000000001", "/opt/logs/eu0000000004", "/opt/logs/uk0000000001", "/opt/logs/uk0000000067", "/opt/logs/uk0000000075"],
-  "output_folder": "../output"
+  "output_folder": "../output",
+  "zip-output_folder": "../output-zip",
+  "enable_ice_login": true
 }

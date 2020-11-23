@@ -22,8 +22,9 @@ def main():
 
         # Hand over the message processor to action
         processor = MessageProcessor()
-        # Obtain the cirrus cookies if not present
-        if not processor.is_non_http_request(parsed_cli_parameters_dict):
+        # Obtain the cirrus cookies if not present, but only for commands that require Cirrus
+        # TODO list messages for ice currently still fetches cirrus cookies
+        if processor.is_cirrus_based_request(parsed_cli_parameters_dict):
             if not cookies_file_exists(config):
                 obtain_cookies_from_cirrus_manually()
         processor.action_cli_request(parsed_cli_parameters_dict)

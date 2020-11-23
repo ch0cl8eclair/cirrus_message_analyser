@@ -1,18 +1,27 @@
-from main.cli.cli_parser import ANALYSE, DETAIL, GET_LOGS
+import os
+import sys
+
+from main.cli.cli_parser import ANALYSE, DETAIL, GET_LOGS, WEBPACK
 from main.config.constants import RULES, FUNCTION, OPTIONS, RULE, TIME, SEARCH_PARAMETERS, START_DATETIME, END_DATETIME, \
     DataType, NAME, UID, MSG_UID, MESSAGE_ID, LIMIT, ALGORITHMS, MESSAGE_STATUS, ALGORITHM_STATS, CACHE_REF, \
     YARA_MOVEMENT_POST_JSON_ALGO, HAS_EMPTY_FIELDS_FOR_PAYLOAD, ARGUMENTS, HAS_MANDATORY_FIELDS_FOR_PAYLOAD, \
-    TRANSFORM_BACKTRACE_FIELDS, SOURCE, DESTINATION, TYPE, DataRequisites, FILE, OUTPUT, START_DATE, END_DATE
+    TRANSFORM_BACKTRACE_FIELDS, SOURCE, DESTINATION, TYPE, DataRequisites, FILE, OUTPUT, START_DATE, END_DATE, CIRRUS, \
+    SYSTEM, ICE, ENABLE_ELASTICSEARCH_QUERY, REGION, ENABLE_ICE_PROXY, ZIP_OUTPUT_FOLDER, OUTPUT_FOLDER, \
+    LOG_STATEMENT_FOUND
 from main.formatter.dual_formatter import LogAndFileFormatter
 from main.formatter.file_output import FileOutputFormatter
 
 from main.formatter.formatter import Formatter, AnalysisFormatter
-from main.http.cirrus_proxy import CirrusProxy, FailedToCommunicateWithCirrus
+from main.http.cirrus_proxy import CirrusProxy, FailedToCommunicateWithSystem
+from main.http.elk_proxy import ElasticsearchProxy
+from main.http.proxy_cache import FailedToCommunicateWithSystem
+from main.http.webpage_proxy import ICEProxy
 from main.model.enricher import MessageEnricher
 from main.model.message_model import Message
-from main.model.model_utils import get_transform_search_parameters, InvalidConfigException
+from main.model.model_utils import get_transform_search_parameters, InvalidConfigException, InvalidStateException
 from main.utils.utils import error_and_exit, calculate_start_and_end_times_from_duration, get_datetime_now_as_zulu, \
-    validate_start_and_end_times
+    validate_start_and_end_times, zip_message_files, parse_datetime_str, parse_timezone_datetime_str, \
+    format_datetime_to_zulu, generate_webpack
 
 from main.config.configuration import ConfigSingleton, LOGGING_CONFIG_FILE
 import logging
@@ -39,6 +48,7 @@ class MessageProcessor:
     def __init__(self):
         self.configuration = ConfigSingleton()
         self.cirrus_proxy = CirrusProxy()
+        self.ice_proxy = ICEProxy()
         self.formatter = Formatter()
         self.statistics_map = {} # Message id indexed
         self.run_algorithm_names = set() # set of all algorithms run
@@ -46,6 +56,8 @@ class MessageProcessor:
         self.custom_algorithm_data = {} # Used to hold custom headings and other algorithm items
         file_generator = FileOutputFormatter()
         self.details_formatter = LogAndFileFormatter(self.formatter, file_generator, self.cirrus_proxy)
+        if bool(self.configuration.get(ENABLE_ELASTICSEARCH_QUERY)):
+            self.elasticsearch_proxy = ElasticsearchProxy()
 
     def action_cli_request(self, cli_dict):
         """Take the cli arguments, validate them further and action them"""
@@ -54,36 +66,49 @@ class MessageProcessor:
         options = cli_dict.get(OPTIONS)
         search_parameters = {}
 
-        if options.get(OUTPUT) == FILE and function_to_call != DETAIL :
+        if options.get(OUTPUT) == FILE and function_to_call != DETAIL:
             error_and_exit("The file output option is current only valid with the details command!")
 
         logger.info("Received CLI request for function: {}".format(function_to_call))
         logger.debug("CLI command is: {}".format(str(cli_dict)))
         if function_to_call == LIST_RULES:
-            self.list_rules(options)
+            self._get_data_for_message(DataType.config_rule, search_parameters, options)
 
         elif function_to_call == CLEAR_CACHE:
             self.clear_cache()
 
         elif function_to_call == LIST_MESSAGES:
             rule_mandatory = True
-            # TODO fix how we do a single msg id call
+
             if UID in cli_dict:
                 rule_mandatory = False
                 search_parameters[MESSAGE_ID] = cli_dict.get(UID)
+                msg_model = Message()
+                msg_model.add_message_uid(cli_dict.get(UID))
+                data_enricher = MessageEnricher(msg_model, self.cirrus_proxy)
+                data_enricher.retrieve_data(None)
+                self.formatter.format(DataType.cirrus_messages, msg_model.message_details, options)
+                return
+
+            system_to_contact = CIRRUS.upper()
             cfg_rule = self.__retrieve_valid_rule(cli_dict, rule_mandatory)
             if cfg_rule:
                 search_parameters.update(cfg_rule.get(SEARCH_PARAMETERS))
-            # IF we have been provided with a message id then we don't need the time
-            if rule_mandatory:
-                self.__validate_time_window(cli_dict, search_parameters)
-            self.list_messages(search_parameters, options)
+                system_to_contact = cfg_rule.get(SYSTEM, CIRRUS.upper())
+            if system_to_contact.upper() == ICE.upper():
+                self._list_messages(DataType.ice_failed_messages, search_parameters, options)
+            else:
+                # IF we have been provided with a message id then we don't need the time
+                if rule_mandatory:
+                    self.__validate_time_window(cli_dict, search_parameters)
+                self._list_messages(DataType.cirrus_messages, search_parameters, options)
             return
 
         elif function_to_call in [LIST_MESSAGE_METADATA, LIST_MESSAGE_PAYLOADS, LIST_MESSAGE_EVENTS]:
+            function_to_datatype_map = {LIST_MESSAGE_METADATA: DataType.cirrus_metadata, LIST_MESSAGE_PAYLOADS: DataType.cirrus_payloads, LIST_MESSAGE_EVENTS: DataType.cirrus_events}
             if UID in cli_dict:
                 search_parameters[MSG_UID] = cli_dict.get(UID)
-                self.__invoke_func_dynamic(function_to_call, search_parameters, options)
+                self._get_data_for_message(function_to_datatype_map[function_to_call], search_parameters, options)
                 return
             error_and_exit("You must supply the message unique id when making this request!")
 
@@ -92,29 +117,66 @@ class MessageProcessor:
                 error_and_exit("Message unique id is not valid for this request!")
             cfg_rule = self.__retrieve_valid_rule(cli_dict)
             search_parameters = get_transform_search_parameters(cfg_rule)
-            self.list_message_transforms(search_parameters, options)
+            self._get_data_for_message(DataType.cirrus_transforms, search_parameters, options)
             return
 
         elif function_to_call == DETAIL:
             if UID not in cli_dict:
                 error_and_exit("Message unique id must be provided for this request")
+            target_system = cli_dict.get(SYSTEM) if SYSTEM in cli_dict else None
+            ice_region = cli_dict.get(REGION) if REGION in cli_dict else None
+
             msg_model = Message()
             msg_model.add_message_uid(cli_dict.get(UID))
-            data_enricher = MessageEnricher(msg_model, self.cirrus_proxy)
-            data_fetch_set = frozenset([DataRequisites.payloads, DataRequisites.transforms])
-            data_enricher.retrieve_data(data_fetch_set)
-            data_enricher.add_transform_mappings()
-            data_enricher.lookup_message_location_on_log_server()
-            self.details_formatter.format_message_model(msg_model, options)
+
+            if not target_system or target_system == "CIRRUS":
+                self.detail_cirrus_message(msg_model, options)
+            elif target_system == "ICE":
+                if not bool(self.configuration.get(ENABLE_ICE_PROXY)):
+                    error_and_exit("Please enable and configure ICE within the configuration")
+                if not ice_region:
+                    error_and_exit("Unable to process detail command, you must specify the region associated with the ice message")
+                msg_model.add_message_region(cli_dict.get(REGION))
+                self.detail_ice_message(msg_model, options)
+            else:
+                error_and_exit("Unable to process detail command, target system unknown: {}".format(target_system))
             return
 
         elif function_to_call == GET_LOGS:
             if UID not in cli_dict:
                 error_and_exit("Message unique id must be provided for this request")
+            if not bool(self.configuration.get(ENABLE_ELASTICSEARCH_QUERY)):
+                error_and_exit("Please enable enable_elasticsearch_query flag and set parameters in config")
             message_uid = cli_dict.get(UID)
             self.__validate_time_window(cli_dict, search_parameters)
-            log_details = self.cirrus_proxy.lookup_message_within_supplied_time_window(message_uid, search_parameters.get("start-date", None), search_parameters.get("end-date", None))
-            self.formatter.format_server_log_details(message_uid, log_details, options)
+            log_details = self.elasticsearch_proxy.lookup_message_within_supplied_time_window(message_uid, search_parameters.get(START_DATE, None), search_parameters.get(END_DATE, None))
+            self.details_formatter.format_server_log_details(message_uid, log_details, options)
+            return
+
+        elif function_to_call == WEBPACK:
+            if UID not in cli_dict:
+                error_and_exit("Message unique id must be provided for this request")
+            if not bool(self.configuration.get(ENABLE_ELASTICSEARCH_QUERY)):
+                error_and_exit("Please enable enable_elasticsearch_query flag and set parameters in config")
+            message_uid = cli_dict.get(UID)
+            if not START_DATETIME in cli_dict:
+                error_and_exit("Please provide a start date time for this request")
+            self.__validate_time_window(cli_dict, search_parameters)
+            # Do we have two dates?
+            if END_DATETIME in cli_dict.keys():
+                log_details = self.elasticsearch_proxy.lookup_message_within_supplied_time_window(message_uid, search_parameters.get(START_DATE, None), search_parameters.get(END_DATE, None))
+            # Do we have a single date?
+            else:
+                dt = parse_datetime_str(search_parameters.get(START_DATE, None))
+                log_details = self.elasticsearch_proxy.lookup_message_around_supplied_time(message_uid, dt)
+
+            if not log_details or not LOG_STATEMENT_FOUND in log_details or not bool(log_details.get(LOG_STATEMENT_FOUND, False)):
+                print(f"No log details found for given message uid: {message_uid}", file=sys.stderr)
+            else:
+                self.details_formatter.format_server_log_details(message_uid, log_details, options)
+                generated_file = generate_webpack(self.configuration, message_uid)
+                logger.info("Generated the following webpack file: {}".format(generated_file))
+                print(f"log details found for message uid: {message_uid}, webpage file generated to: {generated_file}", file=sys.stdout)
             return
 
         elif function_to_call == ANALYSE:
@@ -135,6 +197,19 @@ class MessageProcessor:
         else:
             logger.error("The given function is not implemented: {}".format(function_to_call))
 
+    def detail_cirrus_message(self, msg_model, options):
+        data_enricher = MessageEnricher(msg_model, self.cirrus_proxy)
+        data_fetch_set = frozenset([DataRequisites.payloads, DataRequisites.transforms])
+        data_enricher.retrieve_data(data_fetch_set)
+        data_enricher.add_transform_mappings()
+        data_enricher.lookup_message_location_on_log_server()
+        self.details_formatter.format_message_model(msg_model, options)
+
+    def detail_ice_message(self, msg_model, options):
+        data_enricher = MessageEnricher(msg_model, self.cirrus_proxy, self.ice_proxy)
+        data_enricher.lookup_ice_message()
+        self.details_formatter.format_message_model(msg_model, options)
+
     def __invoke_func_dynamic(self, function_name, search_parameters, options):
         logger.debug("Dynamically invoking function: {}".format(function_name))
         func = getattr(self, function_name)
@@ -148,61 +223,55 @@ class MessageProcessor:
                 return rule
         return None
 
-    def list_messages(self, search_criteria, format_options):
-        logger.debug("Preparing to list_messages")
+    def _get_data_for_message(self, data_type, search_criteria, format_options):
+        logger.debug("Preparing to get data for {}".format(data_type))
         try:
-            result = self.cirrus_proxy.search_for_messages(search_criteria)
-            record_count = len(result) if result else 0
-            logger.info("Obtained {} records from server".format(record_count))
-            self.formatter.format(DataType.cirrus_messages, result, format_options)
-        except FailedToCommunicateWithCirrus as err:
+            if data_type == DataType.cirrus_messages:
+                result = self.cirrus_proxy.search_for_messages(search_criteria)
+            elif data_type == DataType.cirrus_transforms:
+                result = self.cirrus_proxy.get_transforms_for_message(search_criteria)
+            elif data_type == DataType.cirrus_payloads:
+                result = self.cirrus_proxy.get_payloads_for_message(search_criteria.get(MSG_UID))
+            elif data_type == DataType.cirrus_events:
+                result = self.cirrus_proxy.get_events_for_message(search_criteria.get(MSG_UID))
+            elif data_type == DataType.cirrus_metadata:
+                result = self.cirrus_proxy.get_metadata_for_message(search_criteria.get(MSG_UID))
+            elif data_type == DataType.config_rule:
+                result = self.configuration.get(RULES)
+            elif data_type == DataType.ice_failed_messages:
+                self.ice_proxy.initialise()
+                result = self.ice_proxy.list_messages(search_criteria)
+            else:
+                raise InvalidStateException("Unknown data type passed to retrieve message data for")
+        except FailedToCommunicateWithSystem as err:
             error_and_exit(str(err))
+        record_count = len(result) if result else 0
+        logger.debug("Obtained {} records from server".format(record_count))
+        self.formatter.format(data_type, result, format_options)
 
-    def list_message_transforms(self, search_criteria, format_options):
-        logger.debug("Preparing to list_transforms")
+    def _list_messages(self, data_type, search_criteria, format_options):
+        logger.debug("Preparing to get data for {}".format(data_type))
         try:
-            result = self.cirrus_proxy.get_transforms_for_message(search_criteria)
-            record_count = len(result) if result else 0
-            logger.info("Obtained {} records from server".format(record_count))
-            self.formatter.format(DataType.cirrus_transforms, result, format_options)
-        except FailedToCommunicateWithCirrus as err:
+            if data_type == DataType.cirrus_messages:
+                result = self.cirrus_proxy.search_for_messages(search_criteria)
+            elif data_type == DataType.ice_failed_messages:
+                self.ice_proxy.initialise()
+                result = self.ice_proxy.list_messages(search_criteria)
+            else:
+                raise InvalidStateException("Unknown data type passed to list messages for")
+        except FailedToCommunicateWithSystem as err:
             error_and_exit(str(err))
-
-    def list_message_payloads(self, search_criteria, format_options):
-        logger.debug("Preparing to list_payloads")
-        try:
-            result = self.cirrus_proxy.get_payloads_for_message(search_criteria.get(MSG_UID))
-            self.formatter.format(DataType.cirrus_payloads, result, format_options)
-        except FailedToCommunicateWithCirrus as err:
-            error_and_exit(str(err))
-
-    def list_message_events(self, search_criteria, format_options):
-        logger.debug("Preparing to list_events")
-        try:
-            result = self.cirrus_proxy.get_events_for_message(search_criteria.get(MSG_UID))
-            self.formatter.format(DataType.cirrus_events, result, format_options)
-        except FailedToCommunicateWithCirrus as err:
-            error_and_exit(str(err))
-
-    def list_message_metadata(self, search_criteria, format_options):
-        logger.debug("Preparing to list_metadata")
-        try:
-            result = self.cirrus_proxy.get_metadata_for_message(search_criteria.get(MSG_UID))
-            self.formatter.format(DataType.cirrus_metadata, result, format_options)
-        except FailedToCommunicateWithCirrus as err:
-            error_and_exit(str(err))
+        record_count = len(result) if result else 0
+        logger.debug("Obtained {} records from server".format(record_count))
+        self.formatter.format(data_type, result, format_options)
 
     def find_message_by_id(self, search_criteria):
         logger.debug("Attempting to find message by id")
         try:
             result = self.cirrus_proxy.get_message_by_uid(search_criteria.get(MSG_UID))
-        except FailedToCommunicateWithCirrus as err:
+        except FailedToCommunicateWithSystem as err:
             error_and_exit(str(err))
         return result
-
-    def list_rules(self, format_options):
-        rules_list = self.configuration.get(RULES)
-        self.formatter.format(DataType.config_rule, rules_list, format_options)
 
     def analyse(self, search_parameters, cfg_rule, limit, format_options):
         """Retrieve msgs from Cirrus and apply algorithms from rule against each, collate results and display"""
@@ -223,7 +292,7 @@ class MessageProcessor:
                 self.__format_analysis(cfg_rule, format_options)
             else:
                 logger.error("Failed to retrieve any messages from search request to analyse")
-        except FailedToCommunicateWithCirrus as err:
+        except FailedToCommunicateWithSystem as err:
             error_and_exit("Failed to retrieve messages for analysis command")
 
     def clear_cache(self):
@@ -258,18 +327,31 @@ class MessageProcessor:
                 error_and_exit(str(err))
             logger.info("Adding time window to search of start-date: {}, end-date: {}".format(time_params.get(START_DATE), time_params.get(END_DATE)))
         else:
+
             # handle start and end times
+            system_to_contact = cli_dict.get(SYSTEM, ICE.upper())
+
             # if we just have start then set now as end time
             if not START_DATETIME in cli_dict:
                 error_and_exit("Please provide a time window to search ie 1d or given start and end datetime values")
-            start_string = cli_dict.get(START_DATETIME)
-            if not END_DATETIME:
-                end_string = get_datetime_now_as_zulu()
-            else:
-                end_string = cli_dict.get(END_DATETIME)
+            start_string = MessageProcessor.__parser_datetime_by_system(system_to_contact, cli_dict.get(START_DATETIME))
+            end_string = None
+            if system_to_contact == CIRRUS.upper():
+                if not END_DATETIME in cli_dict:
+                    end_string = get_datetime_now_as_zulu()
+                else:
+                    end_string = MessageProcessor.__parser_datetime_by_system(system_to_contact, cli_dict.get(END_DATETIME))
             time_params = validate_start_and_end_times(start_string, end_string)
             search_parameters.update(time_params)
             logger.info("Adding time window to search of start-date: {}, end-date: {}".format(start_string, end_string))
+
+    @staticmethod
+    def __parser_datetime_by_system(given_system, given_datetime_str):
+        if given_system == ICE.upper():
+            ice_given_datetime = parse_timezone_datetime_str(given_datetime_str)
+            return format_datetime_to_zulu(ice_given_datetime)
+        else:
+            return given_datetime_str
 
     def __add_message_stats(self, msg_model):
         self.statistics_map[msg_model.message_uid] = {MESSAGE_STATUS: msg_model.status_dict}
@@ -334,6 +416,13 @@ class MessageProcessor:
         if function_to_call in [LIST_RULES, CLEAR_CACHE]:
             return True
         return False
+
+    @staticmethod
+    def is_cirrus_based_request(cli_dict):
+        function_to_call = cli_dict.get(FUNCTION)
+        if MessageProcessor.is_non_http_request(cli_dict) or function_to_call in [GET_LOGS, WEBPACK]:
+            return False
+        return True
 
     def __get_algorithm_prerequisite_data(self, msg_model, algorithm_instance):
         data_set = algorithm_instance.get_data_prerequistites()

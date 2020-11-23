@@ -80,5 +80,17 @@
           "field_type": "lines"
         }
       }]
+  },
+  {
+    "name": "ICE_US_FAILURES",
+    "system": "ICE",
+    "search_parameters": {
+      "region": "US",
+      "adapter_id": "",
+      "source": "",
+      "destination": "",
+      "type": ""
+    },
+    "algorithms": ["YaraMovementPostJson"]
   }
 ]

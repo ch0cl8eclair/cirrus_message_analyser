@@ -5,6 +5,8 @@ CREDENTIALS = "credentials"
 RULES = "rules"
 ELASTICSEARCH_CREDENTIALS = "elastic_log_search"
 CIRRUS_CREDENTIALS = "cirrus"
+ICE_CREDENTIALS = "ice_dashboard"
+ADM_CREDENTIALS = "adm_package_manager"
 
 OUTPUT = 'output'
 QUIET = 'quiet'
@@ -63,7 +65,6 @@ MESSAGE_STATUS = "message-status"
 UNIQUE_ID = "unique-id"
 
 CHROME_DRIVER_FOLDER = "chrome-driver-folder"
-CIRRUS_CONNECT_WEB_URL = "cirrus_connect_web_url"
 
 PAYLOAD_INDEX = "payload-index"
 STEP = "step"
@@ -78,6 +79,7 @@ ALGORITHM_STATS = "algorithm_stats"
 CACHE_REF = "cache-ref"
 CACHED_COOKIE = "cached-cookie"
 # Cache expire constants
+SEC_30 = 30
 MIN_30 = 60 * 30
 HOUR_1 = 3600
 DAY_1 = HOUR_1 * 24
@@ -94,6 +96,7 @@ ARGUMENTS = "arguments"
 
 FIELD_TYPE = "field_type"
 
+CIRRUS_LOGIN = "CIRRUS_LOGIN"
 ENABLE_SELENIUM_LOGIN = "enable_selenium_login"
 ENABLE_ELASTICSEARCH_QUERY = "enable_elasticsearch_query"
 ELASTICSEARCH_HOST = "elasticsearch_host"
@@ -101,6 +104,7 @@ ELASTICSEARCH_PORT = "elasticsearch_port"
 ELASTICSEARCH_SCHEME = "elasticsearch_scheme"
 ELASTICSEARCH_INDEX = "elasticsearch_index"
 ELASTICSEARCH_SECONDS_MARGIN = "elasticsearch_seconds_margin"
+ELASTICSEARCH_SECONDS_MARGIN_FOR_ICE = "elasticsearch_seconds_margin_for_ice"
 ELASTICSEARCH_EXCLUDE_LOG_FILES = "elasticsearch_exclude_log_files"
 ELASTICSEARCH_RETAIN_SERVER_OUTPUT = "elasticsearch_retain_server_output"
 
@@ -117,11 +121,26 @@ LEVEL = "level"
 LOG_STATEMENT_FOUND = "log_statements_found"
 
 OUTPUT_FOLDER = "output_folder"
+ZIP_OUTPUT_FOLDER = "zip-output_folder"
 ERROR_COUNT = "errors"
 TOTAL_COUNT = "totals"
 
 TRANSFORM = "TRANSFORM"
 VALIDATE = "VALIDATE"
+
+PROJECTS = "projects"
+NAME = "name"
+SYSTEM = "system"
+ICE = "Ice"
+CIRRUS = "Cirrus"
+
+REGION = "region"
+ADAPTER_ID = "adapter_id"
+
+MESSAGE_ID_HEADING = 'Message ID'
+EVENT_DATE_HEADING = 'Event Date'
+
+ENABLE_ICE_PROXY = "enable_ice_login"
 
 
 # Declaring these enums here to avoid circular reference issues, that are such a pain
@@ -143,6 +162,8 @@ class DataType(Enum):
     log_statements = 15
     elastic_search_results = 16
     elastic_search_results_correlated = 17
+    ice_dashboard = 18
+    ice_failed_messages = 19
 
 
 class DataRequisites(Enum):
@@ -165,6 +186,12 @@ class OutputFormat(Enum):
     table = 1
     csv = 2
     file = 3
+
+
+class LogSearchDirection(Enum):
+    both = 0
+    forward = 1
+    backward = 2
 
 
 # This is for custom data algorithms

@@ -3,7 +3,7 @@ import datetime
 
 from main.config.constants import YESTERDAY, TODAY, DAYS, HOURS
 from main.utils.utils import validate_duration_string, calculate_start_and_end_times_from_duration, parse_datetime_str, \
-    convert_timestamp_to_datetime_str
+    convert_timestamp_to_datetime_str, parse_timezone_datetime_str, NEW_TZINFOS
 
 
 class UtilsDateTimeTest(unittest.TestCase):
@@ -37,7 +37,7 @@ class UtilsDateTimeTest(unittest.TestCase):
         self.__compare_datetime_with_delta(midnight, result["start-date"])
         self.__compare_datetime_with_delta(now, result["end-date"])
         # String comparison because we can
-        self.assertEquals(midnight.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z', result["start-date"])
+        self.assertEqual(midnight.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z', result["start-date"])
 
     def test_calculate_start_and_end_times_from_duration_yesterday(self):
         cli_cmd = "yesterday"
@@ -51,8 +51,8 @@ class UtilsDateTimeTest(unittest.TestCase):
         self.__compare_datetime_with_delta(midnight_yesterday, result["start-date"])
         self.__compare_datetime_with_delta(midnight_today, result["end-date"])
         # String comparison
-        self.assertEquals(midnight_yesterday.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z', result["start-date"])
-        self.assertEquals(midnight_today.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z', result["end-date"])
+        self.assertEqual(midnight_yesterday.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z', result["start-date"])
+        self.assertEqual(midnight_today.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z', result["end-date"])
 
     def test_validate_duration_string_errors(self):
         with self.assertRaises(Exception) as context:
@@ -112,7 +112,19 @@ class UtilsDateTimeTest(unittest.TestCase):
     def test_convert_timestamp_to_datetime_str(self):
         timestamp = 1591270622000
         actual = convert_timestamp_to_datetime_str(timestamp)
-        self.assertEquals("2020-06-04T11:37:02.000Z", actual)
+        self.assertEqual("2020-06-04T11:37:02.000Z", actual)
+
+    def test_parse_timezone_datetime_str(self):
+        datetime_str = "2020-08-11 15:37:44 BST"
+        expected = datetime.datetime(2020, 8, 11, 14, 37, 44, 0, NEW_TZINFOS['UTC'])
+        actual_date_time = parse_timezone_datetime_str(datetime_str)
+        self.assertAlmostEqual(expected, actual_date_time, delta=datetime.timedelta(seconds=1))
+
+    def test_parse_timezone_datetime_str_gmt(self):
+        datetime_str = "2020-11-23 09:14:20 GMT"
+        expected = datetime.datetime(2020, 11, 23, 9, 14, 20, 0, NEW_TZINFOS['UTC'])
+        actual_date_time = parse_timezone_datetime_str(datetime_str)
+        self.assertAlmostEqual(expected, actual_date_time, delta=datetime.timedelta(seconds=1))
 
 
 if __name__ == '__main__':

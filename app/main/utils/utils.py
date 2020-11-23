@@ -3,12 +3,16 @@ import json
 import re
 import sys
 import os.path
+import zipfile
 from os import path
 
+from dateutil import parser
+from dateutil.tz import gettz
 from main.config.constants import *
 
 DURATION_PATTERN = re.compile(r'(\d+)([dh])')
 DATETIME_REGEX = re.compile(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}')
+TZ_FILE = 'resources/timezones_dict.json'
 
 
 def parse_json_from_file(filename):
@@ -81,6 +85,7 @@ def validate_duration_string(duration_string):
 
 
 def calculate_start_and_end_times_from_duration(duration_string):
+    """Given a time duration string ie 1d, 1h etc, generate corresponding start and end times for search"""
     validation_map = validate_duration_string(duration_string)
     if validation_map["is_valid"]:
         # Using latter datetime instead of now to handle yesterday
@@ -105,7 +110,10 @@ def calculate_start_and_end_times_from_duration(duration_string):
 
 def validate_start_and_end_times(start_datetime_str, end_datetime_str):
     # Note the key names here are the Cirrus api ones
-    return {START_DATE: format_datetime_to_zulu(parse_datetime_str(start_datetime_str)), END_DATE: format_datetime_to_zulu(parse_datetime_str(end_datetime_str))}
+    result_dict = {START_DATE: format_datetime_to_zulu(parse_datetime_str(start_datetime_str))}
+    if end_datetime_str:
+        result_dict[END_DATE] = format_datetime_to_zulu(parse_datetime_str(end_datetime_str))
+    return result_dict
 
 
 def parse_datetime_str(datetime_str):
@@ -114,6 +122,21 @@ def parse_datetime_str(datetime_str):
         matched_datetime_str = match.group()
         return datetime.datetime.strptime(matched_datetime_str, "%Y-%m-%dT%H:%M:%S")
     raise ValueError("Invalid datetime supplied: [{}]".format(datetime_str))
+
+
+def _read_tz_from_file(filename):
+    tz_data = parse_json_from_file(filename)
+    for k, v in tz_data.items():
+        yield k, gettz(v)
+
+
+NEW_TZINFOS = dict(_read_tz_from_file(TZ_FILE))
+
+
+def parse_timezone_datetime_str(datetime_str):
+    tzdate = parser.parse(datetime_str, tzinfos=NEW_TZINFOS)
+    res = tzdate.astimezone(NEW_TZINFOS['UTC'])
+    return res
 
 
 def format_datetime_to_zulu(provided_datetime):
@@ -140,3 +163,39 @@ def convert_output_option_to_enum(options):
     options.get(OUTPUT)
     requested_output = OutputFormat[options.get(OUTPUT)]
     return requested_output
+
+
+def get_config_for_website(configuration, url_name):
+    sites_cfg = configuration.get(URLS)
+    for site in sites_cfg:
+        if site["name"] == url_name:
+            return site
+    return None
+
+
+def generate_webpack(configuration, message_uid):
+    output_folder_str = configuration.get(OUTPUT_FOLDER)
+    zip_output_folder_str = configuration.get(ZIP_OUTPUT_FOLDER)
+    message_output_folder = os.path.join(output_folder_str, message_uid)
+    zip_output_folder = os.path.join(zip_output_folder_str)
+    message_uid,  message_output_folder, zip_output_folder
+    generated_file = zip_message_files(message_uid,  message_output_folder, zip_output_folder)
+    return generated_file
+
+
+def zip_message_files(message_uid, message_output_folder, zip_output_folder):
+    '''
+    Zips the message output folder into a single zip to be used by the support team
+    :param message_uid: message uid to search for
+    :param message_output_folder: the folder were the message search files reside
+    :param zip_output_folder: the folder where the zip is to be created
+    :return: path to the created zip file
+    '''
+    target_zip_file = os.path.join(zip_output_folder, f"{message_uid}.zip")
+    if not path.exists(target_zip_file):
+        with zipfile.ZipFile(target_zip_file, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            for root, dirs, files in os.walk(message_output_folder):
+                for file in files:
+                    if file.endswith(".log") or file.endswith(".txt"):
+                        zipf.write(os.path.join(root, file), file)
+    return os.path.abspath(target_zip_file)

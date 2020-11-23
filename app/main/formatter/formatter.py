@@ -13,7 +13,7 @@ from main.config.constants import OUTPUT, JSON, DataType, NAME, QUIET, \
     YARA_MOVEMENT_POST_JSON_ALGO, HAS_EMPTY_FIELDS_FOR_PAYLOAD, HAS_MANDATORY_FIELDS_FOR_PAYLOAD, \
     TRANSFORM_BACKTRACE_FIELDS, HOST, LOGFILE, LEVEL, LOG_CORRELATION_ID, LINE, \
     TIME, TOTAL_COUNT, ERROR_COUNT, \
-    OutputFormat
+    OutputFormat, SYSTEM
 from main.model.model_utils import enrich_message_analysis_status_results, get_algorithm_results_per_message, \
     prefix_message_id_to_lines, get_data_type_for_algorithm, get_algorithm_name_from_data_type
 from main.utils.utils import convert_output_option_to_enum, convert_timestamp_to_datetime_str
@@ -91,7 +91,7 @@ class Formatter:
     def _get_headings(self, data_type):
         """Gives the list of headings per data type"""
         if data_type == DataType.config_rule:
-            return ["Name", "source", "destination", "type", "status"]
+            return ["Name", "system", "source", "destination", "type", "status"]
         elif data_type == DataType.cirrus_messages:
             return ["insertDate", "id", "unique-id", "source", "destination", "sub-destination", "type", "sub-type", "parent-id", "process-id", "business-id", "message-status", "message-date"]
         elif data_type == DataType.cirrus_payloads:
@@ -118,12 +118,16 @@ class Formatter:
             return [HOST, LOGFILE, TOTAL_COUNT, ERROR_COUNT, LOG_CORRELATION_ID]
         elif data_type == DataType.log_statements:
             return [TIME, LEVEL, LINE]
+        if data_type == DataType.ice_failed_messages:
+            return ['Event Date', 'Message ID', 'Adapter ID', 'Service Details', 'Source', 'Destination', 'Message Type', 'Region', 'Delete']
+        if data_type == DataType.ice_dashboard:
+            return ['Community', 'In Progress Messages', 'Failed Event Messages', 'Heartbeat Failures', 'CALM Alerts']
         return None
 
     def _flatten_data_record(self, data_type, data):
         """Used to screen out less useful column data from dataset, also flattens out nested structures"""
         if data_type == DataType.config_rule:
-            defined_fields = [[NAME], ["search_parameters", "source"], ["search_parameters", "destination"], ["search_parameters", "type"], ["search_parameters", "message-status"]]
+            defined_fields = [[NAME], [SYSTEM], ["search_parameters", "source"], ["search_parameters", "destination"], ["search_parameters", "type"], ["search_parameters", "message-status"]]
         elif data_type == DataType.cirrus_messages:
             defined_fields = [["insertDate"], ["id"], ["unique-id"], ["source"], ["destination"], ["sub-destination"], ["type"], ["sub-type"], ["parent-id"], ["process-id"], ["business-id"], ["message-status"], ["message-date"]]
         elif data_type == DataType.cirrus_metadata:
@@ -143,6 +147,10 @@ class Formatter:
         elif data_type == DataType.host_log_mappings:
             defined_fields = [[heading] for heading in self._get_headings(data_type)]
         elif data_type == DataType.log_statements:
+            defined_fields = [[heading] for heading in self._get_headings(data_type)]
+        elif data_type == DataType.ice_failed_messages:
+            defined_fields = [[heading] for heading in self._get_headings(data_type)]
+        elif data_type == DataType.ice_dashboard:
             defined_fields = [[heading] for heading in self._get_headings(data_type)]
         else:
             defined_fields = []
@@ -165,9 +173,9 @@ class Formatter:
         iteration = 0
         for current_field in fields:
             if iteration == 0:
-                data_obj = data.get(current_field)
+                data_obj = data.get(current_field, "")
             else:
-                data_obj = data_obj.get(current_field)
+                data_obj = data_obj.get(current_field, "")
             iteration = iteration + 1
         # Do we have data, check the last field obtained is a date and format it out
         if translatable_date_fields_list and data_obj and current_field and current_field in translatable_date_fields_list:

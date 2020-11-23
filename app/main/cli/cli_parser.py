@@ -1,7 +1,7 @@
 import argparse
 
 from main.config.constants import FUNCTION, UID, TIME, CSV, JSON, TABLE, RULE, OPTIONS, OUTPUT, START_DATETIME, \
-    END_DATETIME, LIMIT, FILE
+    END_DATETIME, LIMIT, FILE, ICE, CIRRUS, SYSTEM, REGION
 
 from main.config.configuration import ConfigSingleton, LOGGING_CONFIG_FILE
 import logging
@@ -19,6 +19,7 @@ ANALYSE = 'analyse'
 CLEAR_CACHE = 'clear-cache'
 DETAIL = 'detail'
 GET_LOGS = "get-logs"
+WEBPACK = "webpack"
 
 output_types_list = [CSV, JSON, TABLE, FILE]
 
@@ -45,7 +46,7 @@ def create_parent_parser():
 
 def create_command_parser(parent_parser):
     command_parser = argparse.ArgumentParser(description="Cirrus Message Analyser commands", parents=[parent_parser])
-    command_parser.add_argument("command", choices=[LIST, ANALYSE, CLEAR_CACHE, DETAIL, GET_LOGS])
+    command_parser.add_argument("command", choices=[LIST, ANALYSE, CLEAR_CACHE, DETAIL, GET_LOGS, WEBPACK])
     help_str = "List command directives: {}".format(",".join(list_commands))
     command_parser.add_argument("command_parameters", metavar='N', nargs='?', help=help_str)
     command_parser.add_argument("--uid", help="Specify the message unique id")
@@ -54,6 +55,8 @@ def create_command_parser(parent_parser):
     command_parser.add_argument("--start-datetime", dest="start_datetime", help="Specify the start date time: 2020-05-17T10:30:08.877Z")
     command_parser.add_argument("--end-datetime", dest="end_datetime", help="Specify the end date time: 2020-05-17T10:30:08.877Z")
     command_parser.add_argument("--limit", type=int, choices=range(1, 100), help="upper limit on the number of msgs processed")
+    command_parser.add_argument("--system", choices=["CIRRUS", "ICE"], help="The target system form which to retrieve data")
+    command_parser.add_argument("--region", choices=["EU", "US", "ZA", "AU"], help="The region with which the message is associated")
     return command_parser
 
 
@@ -92,6 +95,10 @@ def parse_command_line_statement(arguments_list):
         result_map[UID] = command_args.uid
     if command_args.limit:
         result_map[LIMIT] = command_args.limit
+    if command_args.system:
+        result_map[SYSTEM] = command_args.system
+    if command_args.region:
+        result_map[REGION] = command_args.region
     log_requested_command(result_map)
     return result_map
 
