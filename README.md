@@ -139,3 +139,10 @@ To upgrade to version 2 from version 1:
 - install the new elasticsearch package using pip or disable elasticsearch feature by turning off the config switch: ```enable_elasticsearch_query``` within ```resource/configuration.json```
 - Upgrade you credentials file to now have credentials to both Cirrus and Elasticsearch (this will be you standard operations network credentials)
 
+To upgrade to version 3 from version 2:
+
+- git pull to get the lastest version
+- install the new required python-dateutil package via pip
+- Check the chrome browser version and chrome driver versions as per install instructions
+- ice dashboard functionality is enabled by default but to disable it alter the ```enable_ice_login``` flag  within ```resource/configuration.json```
+- Upgrade you credentials file to now have credentials for Cirrus, Elasticsearch and ICE
