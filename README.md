@@ -107,6 +107,36 @@ Obtain webpack for Cirrus listed msg (note the different ISO date format)
 cmc.py webpack --uid 324324-23434-3423424 --start-date 2020-05-17T10:30:08.877Z --end-date 2020-05-17T10:31:18.312Z
 ```
 
+
+List ADM configs
+```
+cmc.py adm configs
+```
+List ADM locations
+```
+cmc.py adm locations
+```
+List ADM versions
+```
+cmc.py adm versions
+```
+List ADM scripts
+```
+cmc.py adm scripts
+```
+List ADM artifacts
+```
+cmc.py adm artifacts
+```
+List ADM versions for a specific project (project filtering can be done for all ADM commands)
+```
+cmc.py adm versions --project ping
+```
+List ADM versions for a grouping of projects, in this case for customer kws, these are defined in the configuration.json file
+```
+cmc.py adm versions --group kws
+```
+
 List the configured rules
 ```
 cmc.py list rules
