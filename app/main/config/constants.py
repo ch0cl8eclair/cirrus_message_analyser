@@ -41,6 +41,8 @@ TIME = 'time'
 UID = 'uid'
 OPTIONS = 'options'
 LIMIT = "limit"
+PROJECT = 'project'
+GROUP = 'group'
 
 TODAY = "today"
 YESTERDAY = "yesterday"
@@ -142,6 +144,18 @@ EVENT_DATE_HEADING = 'Event Date'
 
 ENABLE_ICE_PROXY = "enable_ice_login"
 
+ADM_LOGIN = "ADM_LOGIN"
+ADM_SUBMIT = "ADM_SUBMIT"
+ADM_LOCATIONS = "ADM_LOCATIONS"
+ADM_VERSIONS = "ADM_VERSIONS"
+ADM_SCRIPTS = "ADM_SCRIPTS"
+ADM_CONFIGS = "ADM_CONFIGS"
+ADM_ARTIFACTS = "ADM_ARTIFACTS"
+ADM_ARTIFACTS_STATUS = "ADM_ARTIFACTS_STATUS"
+ICE_LOGIN = "ICE_LOGIN"
+ICE_SUBMIT = "ICE_SUBMIT"
+ICE_CALM_DASHBOARD = "ICE_CALM_DASHBOARD"
+ICE_FAILED_MESSAGES = "ICE_FAILED_MESSAGES"
 
 # Declaring these enums here to avoid circular reference issues, that are such a pain
 class DataType(Enum):
@@ -164,6 +178,11 @@ class DataType(Enum):
     elastic_search_results_correlated = 17
     ice_dashboard = 18
     ice_failed_messages = 19
+    adm_locations = 20
+    adm_configs = 21
+    adm_versions = 22
+    adm_scripts = 23
+    adm_artifacts = 24
 
 
 class DataRequisites(Enum):

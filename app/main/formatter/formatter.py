@@ -243,6 +243,13 @@ class DynamicFormatter(Formatter):
             logger.debug("formatting list of message statuses with algorithmic status results")
             # go through this path to add flattening of data
             super().format(data_type, output_data, options)
+        elif data_type in [DataType.adm_locations, DataType.adm_configs, DataType.adm_versions, DataType.adm_scripts, DataType.adm_artifacts]:
+            logger.debug("formatting list of adm data")
+            if data:
+                headings = data.pop(0)
+                super()._format_to_table(data, headings)
+            else:
+                logger.warning("no data to output for type: {}".format(data_type))
         else:
             # avoid flattening
             self._format(data_type, output_data, options)

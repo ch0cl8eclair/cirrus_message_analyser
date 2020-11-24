@@ -163,7 +163,7 @@ class MessageProcessor:
                 error_and_exit("Please provide a start date time for this request")
             self.__validate_time_window(cli_dict, search_parameters)
             # Do we have two dates?
-            if END_DATETIME in cli_dict.keys():
+            if search_parameters.get(END_DATE, None):
                 log_details = self.elasticsearch_proxy.lookup_message_within_supplied_time_window(message_uid, search_parameters.get(START_DATE, None), search_parameters.get(END_DATE, None))
             # Do we have a single date?
             else:

@@ -101,7 +101,31 @@
   "adm-projects": [
     {
       "name": "proagrica-network",
-      "projects": ["access-api", "alert-handler-api", "journey-manager-api", "address-resolver", "address-scorer", "warehouse-api", "traffic-manager-api", "traffic-manager-ui", "members-directory-api", "members-directory-ui", "address-resolver-ui"]
+      "projects": ["address-resolver","members-directory-api","members-directory-ui","traffic-manager-api","traffic-manager-ui","alert-handler-api","warehouse-api","address-scorer","address-resolver-ui","access-api","journey-manager-api","code-matcher-api","code-matcher-ui","proagrica-network-ui","entitlements-api"]
+    },
+    {
+      "name": "yara",
+      "projects": ["yara-cz","yara-de","uk0000001140","yara-us","yara-sc","yara-uk","uk0000001139","magentodb","uk0000000037","uk0000000036","uk0000000043","uk0000000042","uk0000001125","uk0000000069","uk0000000073"]
+    },
+    {
+      "name": "websupplier",
+      "projects": ["websupplier-webapp","uk0000000070","websupplier-webapp-za","uk0000000070-v2"]
+    },
+    {
+      "name": "ping",
+      "projects": ["ping","ping-ui","yara","yara-ui","yara-qe4","yara-qe4-ui","ping-demo","yara-train","yara-train-ui","ping-syngenta","ping-syngenta-ui","syngenta-uat-ui","syngenta-uat","pe","forfarmers","forfarmers-ui","syngenta-us","syngenta-us-ui","syngenta-se-uat-ui","ping-syngenta-se-eu","ping-syngenta-se-eu-ui","ping-syngenta-sl-us","ping-syngenta-sl-us-ui","ping-syngenta-sl-us-uat","ping-syngenta-sl-us-uat-ui","ping-syngenta-cn-us","ping-syngenta-cn-us-ui","ping-syngenta-cn-us-uat-ui","ping-syngenta-cn-us-uat","ping-syngenta-ce-eu-uat","ping-syngenta-ce-eu-uat-ui","ping-syngenta-se-eu-uat","ping-syngenta-se-eu-uat-ui"]
+    },
+    {
+      "name": "cirrus",
+      "projects": ["auth-service","permissions-engine","cirrus-connect","ftp-service","auth-service-za","permissions-engine-za","cirrus-connect-za"]
+    },
+    {
+      "name": "cirrus-config",
+      "projects": ["us0000000001","eu0000000001","eu0000000002","eu0000000003","us0000000003","us0000000002","au0000000002","au0000000001","zz0000000001","us0000000004","eu0000000004","eu0000000006","za0000000001","za0000000002"]
+    },
+    {
+      "name": "kws",
+      "projects": ["kws-uk","kws-de","kws-lochow","kws-bx","kws-at","uk0000000030","uk0000000031","uk0000000028","uk0000000032","uk0000001058","uk0000000029","kws-lochow_sit","fr0000000001"]
     }
   ],
   "chrome-driver-folder": "chromedriver86_win32",
