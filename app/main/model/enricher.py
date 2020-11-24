@@ -1,6 +1,6 @@
 from main.algorithms.payload_transform_mapper import PayloadTransformMapper
 from main.config.constants import MESSAGE_ID, SEARCH_PARAMETERS, TYPE, DESTINATION, SOURCE, DataRequisites, \
-    ENABLE_ELASTICSEARCH_QUERY
+    ENABLE_ELASTICSEARCH_QUERY, MESSAGE_ID_HEADING, EVENT_DATE_HEADING, ENABLE_ICE_PROXY
 
 from main.config.configuration import ConfigSingleton, LOGGING_CONFIG_FILE
 import logging
@@ -9,6 +9,7 @@ from logging.config import fileConfig
 from main.http.elk_proxy import ElasticsearchProxy
 from main.model.model_utils import get_transform_search_parameters, InvalidStateException, \
     extract_search_parameters_from_message_detail, SuspectedMissingTransformsException
+from main.utils.utils import parse_timezone_datetime_str
 
 fileConfig(LOGGING_CONFIG_FILE)
 logger = logging.getLogger('main')
@@ -23,35 +24,40 @@ EVENTS = "events"
 class MessageEnricher:
     """Given a message model, this class determines which data to retrieve for the message and update the message model with the data"""
 
-    def __init__(self, message_model, cirrus_proxy):
+    def __init__(self, message_model, cirrus_proxy, ice_proxy=None):
         self.configuration = ConfigSingleton()
         if not message_model.has_rule and not message_model.message_uid:
             raise InvalidStateException("Message Enricher requires rule or message uid")
         self.message = message_model
         self.cirrus_proxy = cirrus_proxy
+        self.ice_proxy = ice_proxy
         if bool(self.configuration.get(ENABLE_ELASTICSEARCH_QUERY)):
             self.elasticsearch_proxy = ElasticsearchProxy()
 
     def retrieve_data(self, prerequisites_data_set):
         """Retrieves the required prereq data for the current msg"""
-        for prereq in prerequisites_data_set:
-            if prereq == DataRequisites.status and not self.message.has_status:
-                # retrieve status data for msg
-                self.__retrieve_message_status()
-            elif prereq == DataRequisites.events and not self.message.has_events:
-                # retrieve events data for msg
-                self.__retrieve_message_events()
-            elif prereq == DataRequisites.payloads and not self.message.has_payloads:
-                # retrieve payloads data for msg
-                self.__retrieve_message_payloads()
-            elif prereq == DataRequisites.transforms and not self.message.has_transforms:
-                # retrieve transforms for msg
-                self.__retrieve_message_transforms()
-            elif prereq == DataRequisites.metadata and not self.message.has_metadata:
-                # retrieve metadata for msg
-                self.__retrieve_message_metadata()
-            else:
-                logger.error("Unsupported data prerequisite item: {}".format(prereq))
+        # If we have a message but not status/details for it then retrieve them
+        if self.get_message_id() and not self.has_status:
+            self.__retrieve_message_by_id()
+        if prerequisites_data_set:
+            for prereq in prerequisites_data_set:
+                if prereq == DataRequisites.status and not self.message.has_status:
+                    # retrieve status data for msg
+                    self.__retrieve_message_status()
+                elif prereq == DataRequisites.events and not self.message.has_events:
+                    # retrieve events data for msg
+                    self.__retrieve_message_events()
+                elif prereq == DataRequisites.payloads and not self.message.has_payloads:
+                    # retrieve payloads data for msg
+                    self.__retrieve_message_payloads()
+                elif prereq == DataRequisites.transforms and not self.message.has_transforms:
+                    # retrieve transforms for msg
+                    self.__retrieve_message_transforms()
+                elif prereq == DataRequisites.metadata and not self.message.has_metadata:
+                    # retrieve metadata for msg
+                    self.__retrieve_message_metadata()
+                else:
+                    logger.error("Unsupported data prerequisite item: {}".format(prereq))
 
     def __retrieve_message_status(self):
         search_criteria = {MESSAGE_ID: self.get_message_id()}
@@ -145,3 +151,18 @@ class MessageEnricher:
             self.message.add_server_location(lookup_dict)
         else:
             logger.debug("Elastic search not enable for message search")
+
+    def lookup_ice_message(self):
+        if self.message.message_region and self.ice_proxy:
+            self.ice_proxy.initialise()
+            failed_details = self.ice_proxy.get_failed_messages_data(self.message.message_region)
+            for item in failed_details:
+                if item[MESSAGE_ID_HEADING] == self.message.message_uid:
+                    ice_give_datetime = parse_timezone_datetime_str(item[EVENT_DATE_HEADING])
+                    results = self.elasticsearch_proxy.lookup_message_around_supplied_time(item[MESSAGE_ID_HEADING], ice_give_datetime)
+                    self.message.add_server_location(results)
+                    break
+            else:
+                logger.error("Failed to find given message uid within ICE failures Dashboard")
+        else:
+            logger.error("No region given to search for messages within ICE Dashboard")

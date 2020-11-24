@@ -5,7 +5,7 @@ import time
 from logging.config import fileConfig
 
 from selenium import webdriver
-from selenium.common.exceptions import ElementClickInterceptedException, TimeoutException
+from selenium.common.exceptions import ElementClickInterceptedException, TimeoutException, SessionNotCreatedException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as EC
@@ -13,9 +13,9 @@ from selenium.webdriver.support.ui import WebDriverWait
 
 from main.config.configuration import ConfigSingleton, LOGGING_CONFIG_FILE
 from main.config.configuration import get_configuration_dict
-from main.config.constants import CREDENTIALS, USERNAME, PASSWORD, CHROME_DRIVER_FOLDER, CIRRUS_CONNECT_WEB_URL, \
-    CACHED_COOKIE, CACHE_REF, MIN_30, CIRRUS_CREDENTIALS
-from main.utils.utils import error_and_exit
+from main.config.constants import CREDENTIALS, USERNAME, PASSWORD, CHROME_DRIVER_FOLDER, \
+    CACHED_COOKIE, CACHE_REF, MIN_30, CIRRUS_CREDENTIALS, CIRRUS_LOGIN, URL
+from main.utils.utils import error_and_exit, get_config_for_website
 
 fileConfig(LOGGING_CONFIG_FILE)
 logger = logging.getLogger('selenium')
@@ -34,7 +34,7 @@ def enter_data_into_field(text_file_component, text_to_enter, hit_return=False):
 def login(driver, config):
     username = config.get(CREDENTIALS).get(CIRRUS_CREDENTIALS).get(USERNAME)
     password = config.get(CREDENTIALS).get(CIRRUS_CREDENTIALS).get(PASSWORD)
-    logger.debug("Logging in with username: [{}] and password: [{}]".format(username, password))
+    logger.debug("Logging in with username: [{}] and password: [*******]".format(username))
 
     username_field = driver.find_element_by_name("j_username")
     password_field = driver.find_element_by_name("j_password")
@@ -120,8 +120,18 @@ def obtain_cookies_from_cirrus_manually():
 
     logger.info("Attempting to login into Cirrus website to obtain superuser cookies")
     # Connect driver
-    driver = webdriver.Chrome(chrome_driver_file)
-    web_url = config.get(CIRRUS_CONNECT_WEB_URL)
+    try:
+        driver = webdriver.Chrome(chrome_driver_file)
+    except SessionNotCreatedException as snce:
+        exception_msg = getattr(snce, 'msg', repr(snce))
+        if "This version of ChromeDriver only supports Chrome version" in exception_msg:
+            logger.error(exception_msg)
+            error_and_exit("Chrome version mismatch, please check that the configured Chrome driver matches the current Chrome browser version (Chrome has likely been updated recently)")
+        logger.exception(snce)
+        error_and_exit("Failed to open Chrome instance to sign into Cirrus, please check you Chrome configuration")
+
+    web_configuration = get_config_for_website(config, CIRRUS_LOGIN)
+    web_url = web_configuration.get(URL)
     driver.get(web_url)
 
     # Driver details

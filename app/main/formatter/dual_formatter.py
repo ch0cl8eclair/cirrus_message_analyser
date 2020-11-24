@@ -102,6 +102,12 @@ class LogAndFileFormatter:
                         logger.error("We have a message uid mismatch between: {} & {}".format(message_uid, server_data_uid))
                     self.format_server_log_details(message_uid, message_model.server_location_dict, options)
 
+    def format_ice_data(self, message_model, options):
+        if self.has_ice_dashboard_stats:
+            self.formatter.format(DataType.ice_dashboard, message_model.ice_dashboard_stats, options)
+        if self.has_ice_failed_messages:
+            self.formatter.format(DataType.ice_failed_messages, message_model.ice_failed_messages, options)
+
     def _add_log_message_heading(self, message, options):
         if options.get(OUTPUT, CSV) != FILE:
             message_logger.info(message)
@@ -109,6 +115,7 @@ class LogAndFileFormatter:
     def format_server_log_details(self, message_uid, server_log_dict, options):
         if not server_log_dict:
             logger.warning("No server log data found to output")
+            return
         host_log_correlation_ids = server_log_dict.get(HOST_LOG_CORRELATION_ID, '')
         has_log_uid_statements = bool(server_log_dict.get(LOG_STATEMENT_FOUND, 'False'))
         if has_log_uid_statements:
