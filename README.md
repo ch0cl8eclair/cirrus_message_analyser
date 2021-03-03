@@ -23,6 +23,11 @@ pip install -r ./app/requirements.txt
 ```
 5. Installl the chrome webdriver for your chrome browser version.
 ```
+Use the script if you use WSL or cygwin (this will install the latest stable version, which probably matches your current installed chrome version):
+. ./app/update-driver.sh
+
+OR
+
 Open chrome, select menu -> help -> about google chrome and read the version number eg 83.0.4103
 Visit https://chromedriver.chromium.org/downloads and download the corresponding version file
 Unzip the file to the app/driver folder and give it a unique name eg chromedriver83_win32. There needs to be an executable within the folder with the default name: chromedriver
