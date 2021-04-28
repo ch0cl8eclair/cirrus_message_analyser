@@ -143,6 +143,46 @@ class CommandLineParserTest(unittest.TestCase):
         expected = {'cli-type': 'ADM', 'function': 'artifacts', 'group': 'uk-adapters', 'options': {'output': 'csv', 'quiet': False, 'verbose': True}}
         self.assertEqual(expected, self.call_sut_func(cli_cmd))
 
+    def test_git_list_group(self):
+        cli_cmd = """cmc.py git list groups"""
+        expected = {'cli-type': 'GIT', 'function': 'list', 'entity': 'groups', 'options': {'output': 'table', 'quiet': False, 'verbose': False, 'all': False}}
+        self.assertEqual(expected, self.call_sut_func(cli_cmd))
+
+    def test_git_list_projects(self):
+        cli_cmd = """cmc.py git -a list projects"""
+        expected = {'cli-type': 'GIT', 'function': 'list', 'entity': 'projects', 'options': {'output': 'table', 'quiet': False, 'verbose': False, 'all': True}}
+        self.assertEqual(expected, self.call_sut_func(cli_cmd))
+
+    def test_git_list_projects_for_group(self):
+        cli_cmd = """cmc.py -v git -a list projects --group 27"""
+        expected = {'cli-type': 'GIT', 'function': 'list', 'entity': 'projects', 'group': '27', 'options': {'output': 'table', 'quiet': False, 'verbose': True, 'all': True}}
+        self.assertEqual(expected, self.call_sut_func(cli_cmd))
+
+    def test_git_list_tags_for_project(self):
+        cli_cmd = """cmc.py git list tags --project 15"""
+        expected = {'cli-type': 'GIT', 'function': 'list', 'entity': 'tags', 'project': '15', 'options': {'output': 'table', 'quiet': False, 'verbose': False, 'all': False}}
+        self.assertEqual(expected, self.call_sut_func(cli_cmd))
+
+    def test_git_list_branches_for_project(self):
+        cli_cmd = """cmc.py git list branches --project 15"""
+        expected = {'cli-type': 'GIT', 'function': 'list', 'entity': 'branches', 'options': {'output': 'table', 'quiet': False, 'verbose': False, 'all': False}, 'project': '15'}
+        self.assertEqual(expected, self.call_sut_func(cli_cmd))
+
+    def test_git_list_commits_for_project(self):
+        cli_cmd = """cmc.py git list commits --project 15"""
+        expected = {'cli-type': 'GIT', 'function': 'list', 'entity': 'commits', 'options': {'output': 'table', 'quiet': False, 'verbose': False, 'all': False}, 'project': '15'}
+        self.assertEqual(expected, self.call_sut_func(cli_cmd))
+
+    def test_git_search_groups(self):
+        cli_cmd = """cmc.py git search groups 'network'"""
+        expected = {'cli-type': 'GIT', 'function': 'search', 'entity': 'groups', 'options': {'output': 'table', 'quiet': False, 'verbose': False, 'all': False}, 'parameters': "'network'"}
+        self.assertEqual(expected, self.call_sut_func(cli_cmd))
+
+    def test_git_search_projects_regex(self):
+        cli_cmd = """cmc.py git search projects '.*[pP]].+'"""
+        expected = {'cli-type': 'GIT', 'function': 'search', 'entity': 'projects', 'options': {'output': 'table', 'quiet': False, 'verbose': False, 'all': False}, 'parameters': "'.*[pP]].+'"}
+        self.assertEqual(expected, self.call_sut_func(cli_cmd))
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -21,7 +21,7 @@ git clone https://gitlab.agb.rbxd.ds/klairb/cirrus_message_analyser.git
 ```
 pip install -r ./app/requirements.txt
 ```
-5. Installl the chrome webdriver for your chrome browser version.
+5. Install the chrome webdriver for your chrome browser version.
 ```
 Use the script if you use WSL or cygwin (this will install the latest stable version, which probably matches your current installed chrome version):
 . ./app/update-driver.sh
@@ -39,10 +39,10 @@ Update the config to point to this folder name either via the app/resources/conf
 The code uses a Cirrus REST api to obtain the message details and performs analysis on the messages to save manual effort. Analysis algorithm can be configured per message classification.
 The code uses your Cirrus credentials and assumes you have super user access as per a support user.
 
-Unfortunately the API does not provide the ability to switch to super user so this is done by mimicking the user'sinteraction with the website using selenium. A chrome browser is opened, the user interactions performed and then the required tokens are obtained. The browser window closes after a short while.
+Unfortunately the API does not provide the ability to switch to super user so this is done by mimicking the user's interaction with the website using selenium. A chrome browser is opened, the user interactions performed and then the required tokens are obtained. The browser window closes after a short while.
 
 ### Output formats
-The tool permitts output as JSON, CSV and Tabular display.
+The tool permits output as JSON, CSV and Tabular display.
 
 ### Environment variables
 You can set your Cirrus credentials either in the credentials.json file or in the following environment variables: CIRRUS_USERNAME, CIRRUS_PASSWORD.
@@ -112,36 +112,6 @@ Obtain webpack for Cirrus listed msg (note the different ISO date format)
 cmc.py webpack --uid 324324-23434-3423424 --start-date 2020-05-17T10:30:08.877Z --end-date 2020-05-17T10:31:18.312Z
 ```
 
-
-List ADM configs
-```
-cmc.py adm configs
-```
-List ADM locations
-```
-cmc.py adm locations
-```
-List ADM versions
-```
-cmc.py adm versions
-```
-List ADM scripts
-```
-cmc.py adm scripts
-```
-List ADM artifacts
-```
-cmc.py adm artifacts
-```
-List ADM versions for a specific project (project filtering can be done for all ADM commands)
-```
-cmc.py adm versions --project ping
-```
-List ADM versions for a grouping of projects, in this case for customer kws, these are defined in the configuration.json file
-```
-cmc.py adm versions --group kws
-```
-
 List the configured rules
 ```
 cmc.py list rules
@@ -157,6 +127,11 @@ You can of course specify the start and end dates in the same format that Cirrus
 ```
 cmc.py list messages --rule YARA_MOVEMENTS_BASIC --start-date 2020-05-17T10:30:00 --end-date 2020-05-17T10:30:08.877Z
 ```
+### ADM interface and usage
+There is an ADM interface to fetch information for builds from this tool, [please click here](./doc-adm.md) for details
+
+### Gitlab interface and usage
+There is an Git interface to fetch information on repositories from this tool, [please click here](./doc-git.md) for details
 
 ### Logs
 cirrus_analyser.log - Contains general log statements
@@ -165,7 +140,7 @@ cirrus-messages-summary.log - Contains message summary data only, these is the d
 
 ## Common issues
 
-Sometimes the code will fail to find messages on cirrus. A common reason is that your sesion has expired, as the code caches certain session cookies. To clear these and force the code to obtain fresh details run:
+Sometimes the code will fail to find messages on cirrus. A common reason is that your session has expired, as the code caches certain session cookies. To clear these and force the code to obtain fresh details run:
 ```
 python cmc.py clear-cache
 ```
@@ -173,18 +148,25 @@ python cmc.py clear-cache
 Selenium requires an exact match with your Chrome browser version (with regards to obtaining super user access). Should your chrome version be updated by a security patch then the functionality will break.
 ```
 See step five on installation to fix this.
+
+OR
+
+from git bash and the root project folder run:
+  make update-driver
+
+This will download and unzip the latest driver, all you have to do is update the folder name within the config file.
 ```
 
 ## Upgrading
 To upgrade to version 2 from version 1:
 
-- git pull to get the lastest version
+- git pull to get the latest version
 - install the new elasticsearch package using pip or disable elasticsearch feature by turning off the config switch: ```enable_elasticsearch_query``` within ```resource/configuration.json```
 - Upgrade you credentials file to now have credentials to both Cirrus and Elasticsearch (this will be you standard operations network credentials)
 
 To upgrade to version 3 from version 2:
 
-- git pull to get the lastest version
+- git pull to get the latest version
 - install the new required python-dateutil package via pip
 - Check the chrome browser version and chrome driver versions as per install instructions
 - ice dashboard functionality is enabled by default but to disable it alter the ```enable_ice_login``` flag  within ```resource/configuration.json```

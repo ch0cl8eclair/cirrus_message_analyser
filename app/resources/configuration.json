@@ -128,7 +128,7 @@
       "projects": ["kws-uk","kws-de","kws-lochow","kws-bx","kws-at","uk0000000030","uk0000000031","uk0000000028","uk0000000032","uk0000001058","uk0000000029","kws-lochow_sit","fr0000000001"]
     }
   ],
-  "chrome-driver-folder": "chromedriver86_win32",
+  "chrome-driver-folder": "chromedriver90_win32",
   "enable_selenium_login": true,
   "enable_elasticsearch_query": true,
   "elasticsearch_host": "elasticsearch-prd.adaptris.net",

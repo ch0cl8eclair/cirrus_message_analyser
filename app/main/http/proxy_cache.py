@@ -62,7 +62,7 @@ class ProxyCache:
         self.__store_cache(cache_key, data, duration)
 
     def generate_cache_key_for_post(self, url, form_dict):
-        cache_key = self.__generate_cache_key_with_dict(form_dict)
+        cache_key = self.__generate_cache_key_with_dict(url, form_dict)
         return cache_key
 
 
