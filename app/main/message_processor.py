@@ -7,7 +7,7 @@ from main.config.constants import RULES, FUNCTION, OPTIONS, RULE, TIME, SEARCH_P
     YARA_MOVEMENT_POST_JSON_ALGO, HAS_EMPTY_FIELDS_FOR_PAYLOAD, ARGUMENTS, HAS_MANDATORY_FIELDS_FOR_PAYLOAD, \
     TRANSFORM_BACKTRACE_FIELDS, SOURCE, DESTINATION, TYPE, DataRequisites, FILE, OUTPUT, START_DATE, END_DATE, CIRRUS, \
     SYSTEM, ICE, ENABLE_ELASTICSEARCH_QUERY, REGION, ENABLE_ICE_PROXY, ZIP_OUTPUT_FOLDER, OUTPUT_FOLDER, \
-    LOG_STATEMENT_FOUND
+    LOG_STATEMENT_FOUND, VERBOSE
 from main.formatter.dual_formatter import LogAndFileFormatter
 from main.formatter.file_output import FileOutputFormatter
 
@@ -116,6 +116,7 @@ class MessageProcessor:
             if UID in cli_dict:
                 error_and_exit("Message unique id is not valid for this request!")
             cfg_rule = self.__retrieve_valid_rule(cli_dict)
+
             search_parameters = get_transform_search_parameters(cfg_rule)
             self._get_data_for_message(DataType.cirrus_transforms, search_parameters, options)
             return
@@ -248,6 +249,9 @@ class MessageProcessor:
         record_count = len(result) if result else 0
         logger.debug("Obtained {} records from server".format(record_count))
         self.formatter.format(data_type, result, format_options)
+        if format_options[VERBOSE]:
+            data = self.formatter.format_transform_sub_lists(result, format_options)
+            self.formatter.format(DataType.cirrus_transforms_steps, data, format_options)
 
     def _list_messages(self, data_type, search_criteria, format_options):
         logger.debug("Preparing to get data for {}".format(data_type))

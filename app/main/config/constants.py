@@ -7,6 +7,9 @@ ELASTICSEARCH_CREDENTIALS = "elastic_log_search"
 CIRRUS_CREDENTIALS = "cirrus"
 ICE_CREDENTIALS = "ice_dashboard"
 ADM_CREDENTIALS = "adm_package_manager"
+GITLAB = "gitlab"
+GITLAB_CONFIG_FILE = "gitlab_config_file"
+GITLAB_DEFAULT_ID = "gitlab_id"
 
 OUTPUT = 'output'
 QUIET = 'quiet'
@@ -36,6 +39,7 @@ PASSWORD = "password"
 CIRRUS_PASSWORD = "CIRRUS_PASSWORD"
 
 FUNCTION = 'function'
+ENTITY = 'entity'
 RULE = 'rule'
 TIME = 'time'
 UID = 'uid'
@@ -43,6 +47,12 @@ OPTIONS = 'options'
 LIMIT = "limit"
 PROJECT = 'project'
 GROUP = 'group'
+GROUPS = 'groups'
+PROJECTS_FOR_TEAM = "projects-for-team"
+COMMITS = 'commits'
+TAGS = 'tags'
+BRANCHES = 'branches'
+PARAMETERS = 'parameters'
 
 TODAY = "today"
 YESTERDAY = "yesterday"
@@ -183,6 +193,11 @@ class DataType(Enum):
     adm_versions = 22
     adm_scripts = 23
     adm_artifacts = 24
+    git_projects = 25
+    git_groups = 26
+    git_branches = 27
+    git_tags = 28
+    git_commits = 29
 
 
 class DataRequisites(Enum):

@@ -1,7 +1,8 @@
 import argparse
 
 from main.config.constants import FUNCTION, UID, TIME, CSV, JSON, TABLE, RULE, OPTIONS, OUTPUT, START_DATETIME, \
-    END_DATETIME, LIMIT, FILE, ICE, CIRRUS, SYSTEM, REGION, PROJECT, GROUP
+    END_DATETIME, LIMIT, FILE, ICE, CIRRUS, SYSTEM, REGION, PROJECT, GROUP, PROJECTS, GROUPS, PROJECTS_FOR_TEAM, ENTITY, \
+    BRANCHES, TAGS, COMMITS, PARAMETERS
 
 from main.config.configuration import ConfigSingleton, LOGGING_CONFIG_FILE
 import logging
@@ -15,6 +16,7 @@ message_logger = logging.getLogger('message')
 # Constants
 ###
 LIST = 'list'
+SEARCH = 'search'
 ANALYSE = 'analyse'
 CLEAR_CACHE = 'clear-cache'
 DETAIL = 'detail'
@@ -32,6 +34,7 @@ RULES = 'rules'
 list_commands = [MESSAGES, MESSAGE_PAYLOADS, MESSAGE_EVENTS, MESSAGE_METADATA, MESSAGE_TRANSFORMS, RULES]
 
 ADM = "ADM"
+GIT = "GIT"
 COMMAND = "COMMAND"
 LOCATIONS = "locations"
 CONFIGS = "configs"
@@ -39,6 +42,7 @@ VERSIONS = "versions"
 SCRIPTS = "scripts"
 ARTIFACTS = "artifacts"
 CLI_TYPE = "cli-type"
+
 
 ###
 # Create CLI command parsers
@@ -70,15 +74,28 @@ def create_command_parser(parent_parser):
 
 def create_adm_parser(parent_parser):
     adm_parser = argparse.ArgumentParser(description="ADM Interface commands", parents=[parent_parser])
-    adm_parser.add_argument("command", choices=[LOCATIONS, CONFIGS, VERSIONS, SCRIPTS, ARTIFACTS, LOCATIONS])
+    adm_parser.add_argument("command", choices=[LOCATIONS, CONFIGS, VERSIONS, SCRIPTS, ARTIFACTS])
     adm_parser.add_argument("--group", help="The parent project group name")
     adm_parser.add_argument("--project", help="The project name")
     return adm_parser
 
 
-def create_processing_options(args):
+def create_git_parser(parent_parser):
+    parent_parser.add_argument("-a", "--all", action="store_true", default=False, help="Show all records in a git request")
+    git_parser = argparse.ArgumentParser(description="GIT Interface commands", parents=[parent_parser])
+    git_parser.add_argument("command", choices=[LIST, SEARCH])
+    git_parser.add_argument("entity", choices=[PROJECTS, GROUPS, COMMITS, TAGS, BRANCHES])
+    git_parser.add_argument("command_parameters", metavar='N', nargs='?', help="search string in single quotes")
+    git_parser.add_argument("--group", help="The parent project group name")
+    git_parser.add_argument("--project", help="The project name")
+    return git_parser
+
+
+def create_processing_options(args, parse_all=False):
     """Generates an options dict which contain input and output command processing options"""
     options = {'output': args.output, 'quiet': args.quiet, 'verbose': args.verbose}
+    if parse_all:
+        options['all'] = args.all
     return options
 
 
@@ -91,6 +108,12 @@ def parse_command_line_statement(arguments_list):
         options = create_processing_options(adm_args)
         result_map = {OPTIONS: options}
         return _handle_adm_parameters(result_map, adm_args)
+    elif len(arguments_list) > 2 and arguments_list[1].upper() == GIT:
+        git_parser = create_git_parser(parent_parser)
+        git_args = git_parser.parse_args(arguments_list[2:])
+        options = create_processing_options(git_args, True)
+        result_map = {OPTIONS: options}
+        return _handle_git_parameters(result_map, git_args)
     else:
         command_parser = create_command_parser(parent_parser)
         # Skip the first element as that should be the python script name
@@ -139,6 +162,22 @@ def _handle_adm_parameters(result_map, args):
         result_map[PROJECT] = args.project
     if args.group:
         result_map[GROUP] = args.group
+    log_requested_command(result_map)
+    return result_map
+
+
+def _handle_git_parameters(result_map, args):
+    result_map[CLI_TYPE] = GIT
+    if args.command:
+        result_map[FUNCTION] = args.command
+    if args.entity:
+        result_map[ENTITY] = args.entity
+    if args.project:
+        result_map[PROJECT] = args.project
+    if args.group:
+        result_map[GROUP] = args.group
+    if args.command_parameters:
+        result_map[PARAMETERS] = args.command_parameters.encode().decode('unicode_escape')
     log_requested_command(result_map)
     return result_map
 

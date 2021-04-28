@@ -72,7 +72,7 @@ class LogAndFileFormatter:
                 self._format_to_log_and_file(message_uid, data_type, data, options)
                 
                 self._add_log_message_heading("\nMessage transform steps:", options)
-                data = self.format_transform_sub_lists(message_model.transforms_list, options)
+                data = self.formatter.format_transform_sub_lists(message_model.transforms_list, options)
                 data_type = DataType.cirrus_transforms_steps
                 self._format_to_log_and_file(message_uid, data_type, data, options)
 
@@ -126,18 +126,6 @@ class LogAndFileFormatter:
                 self._format_to_log_and_file(message_uid, DataType.host_log_mappings, enriched_log_summary_data, options)
         else:
             message_logger.info("\nNo server logs found on elasticsearch server")
-
-    def format_transform_sub_lists(self, transform_data, options):
-        # We don't need to do this for JSON output
-        if options.get(OUTPUT) == JSON:
-            return None
-        all_records = []
-        for current_transform in transform_data:
-            parent_prefix_dict = { parent_key: current_transform.get(parent_key) for parent_key in ["transform-name", "transform-channel"] }
-            if "transform-steps" in current_transform and current_transform["transform-steps"]:
-                updates_transform_data = [ dict(parent_prefix_dict, **record) for record in current_transform["transform-steps"] ]
-                all_records.extend(updates_transform_data)
-        return all_records
 
     def _download_xsl_files(self, message_uid, xsl_urls_list):
         """Downloads each xsl file from the given list to the output folder"""

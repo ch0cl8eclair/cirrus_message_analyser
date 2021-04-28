@@ -13,7 +13,7 @@ from main.config.constants import OUTPUT, JSON, DataType, NAME, QUIET, \
     YARA_MOVEMENT_POST_JSON_ALGO, HAS_EMPTY_FIELDS_FOR_PAYLOAD, HAS_MANDATORY_FIELDS_FOR_PAYLOAD, \
     TRANSFORM_BACKTRACE_FIELDS, HOST, LOGFILE, LEVEL, LOG_CORRELATION_ID, LINE, \
     TIME, TOTAL_COUNT, ERROR_COUNT, \
-    OutputFormat, SYSTEM
+    OutputFormat, SYSTEM, VERBOSE
 from main.model.model_utils import enrich_message_analysis_status_results, get_algorithm_results_per_message, \
     prefix_message_id_to_lines, get_data_type_for_algorithm, get_algorithm_name_from_data_type
 from main.utils.utils import convert_output_option_to_enum, convert_timestamp_to_datetime_str
@@ -36,13 +36,13 @@ class Formatter:
         else:
             logger.warning("No data to output for type: {}".format(output_type.name))
             return
-        data_records = self._get_processed_data_for_output(data, data_type, output_type, flatten_records)
+        data_records = self._get_processed_data_for_output(data, data_type, output_type, options, flatten_records)
         if output_type == OutputFormat.json:
             self._format_to_json(data_records)
         elif output_type == OutputFormat.table:
-            self._format_to_table(data_records, self._get_headings(data_type))
+            self._format_to_table(data_records, self._get_headings(data_type, options))
         elif output_type == OutputFormat.csv:
-            self._format_to_csv(data_records, self._get_headings(data_type))
+            self._format_to_csv(data_records, self._get_headings(data_type, options))
 
     def _format_to_json(self, data_records):
         message_logger.info(json.dumps(data_records))
@@ -59,22 +59,22 @@ class Formatter:
     ### Utility methods
     ### #######################################################################
 
-    def _get_processed_data_for_output(self, data, data_type, output_type, flatten_records):
+    def _get_processed_data_for_output(self, data, data_type, output_type, options, flatten_records):
         if output_type == OutputFormat.table:
             if flatten_records:
-                return (self._flatten_data_record(data_type, record) for record in data)
+                return (self._flatten_data_record(data_type, record, options) for record in data)
         elif output_type == OutputFormat.csv:
             if flatten_records:
-                return (self._flatten_data_record(data_type, record) for record in data)
+                return (self._flatten_data_record(data_type, record, options) for record in data)
         return data
 
     def get_processed_data_for_file_output(self, data, data_type, options, flatten_records=True):
         output_type = convert_output_option_to_enum(options)
-        data_records = self._get_processed_data_for_output(data, data_type, output_type, flatten_records)
+        data_records = self._get_processed_data_for_output(data, data_type, output_type, options, flatten_records)
         if output_type == OutputFormat.table:
-            return self._create_table_data_str(data_records, self._get_headings(data_type))
+            return self._create_table_data_str(data_records, self._get_headings(data_type, options))
         elif output_type == OutputFormat.csv:
-            return self._csv_data_generator(data_records, self._get_headings(data_type))
+            return self._csv_data_generator(data_records, self._get_headings(data_type, options))
         return data_records
 
     def _create_table_data_str(self, data_records, headings):
@@ -88,7 +88,7 @@ class Formatter:
         for record in data_records:
             yield ", ".join([self._xstr(elem) for elem in record])
 
-    def _get_headings(self, data_type):
+    def _get_headings(self, data_type, options):
         """Gives the list of headings per data type"""
         if data_type == DataType.config_rule:
             return ["Name", "system", "source", "destination", "type", "status"]
@@ -105,13 +105,13 @@ class Formatter:
         elif data_type == DataType.cirrus_metadata:
             return None # TODO need to find a metadata example
         elif data_type in [DataType.analysis_yara_movements, DataType.transform_backtrace_fields]:
-            return self._get_dynamic_headings(data_type)
+            return self._get_dynamic_headings(data_type, options)
         elif data_type == DataType.empty_fields_for_payload:
             return FlattenJsonOutputToCSV.EMPTY_HEADINGS
         elif data_type == DataType.mandatory_fields_for_payload:
             return FlattenJsonOutputToCSV.MANDATORY_HEADINGS
         elif data_type == DataType.analysis_messages:
-            return self._get_dynamic_headings(data_type)
+            return self._get_dynamic_headings(data_type, options)
         elif data_type == DataType.payload_transform_mappings:
             return PayloadTransformMapper.HEADINGS
         elif data_type == DataType.host_log_mappings:
@@ -122,9 +122,21 @@ class Formatter:
             return ['Event Date', 'Message ID', 'Adapter ID', 'Service Details', 'Source', 'Destination', 'Message Type', 'Region', 'Delete']
         if data_type == DataType.ice_dashboard:
             return ['Community', 'In Progress Messages', 'Failed Event Messages', 'Heartbeat Failures', 'CALM Alerts']
+
+        if data_type in [DataType.git_projects]:
+            return ["ID", "Name", "visibility", "description", "archived"]
+        if data_type == DataType.git_groups:
+            return ["ID", "Name", "path", "visibility", "description"]
+        if data_type == DataType.git_branches:
+            return ["Name", "merged", "protected", "developers_can_push", "developers_can_merge", "can_push", "default", "web_url"]
+        if data_type == DataType.git_commits:
+            return ["id", "title", "author_name", "author_email", "created_at"]
+        if data_type == DataType.git_tags:
+            return ["name", "path", "location"]
+        return self._get_dynamic_headings(data_type, options)
         return None
 
-    def _flatten_data_record(self, data_type, data):
+    def _flatten_data_record(self, data_type, data, options):
         """Used to screen out less useful column data from dataset, also flattens out nested structures"""
         if data_type == DataType.config_rule:
             defined_fields = [[NAME], [SYSTEM], ["search_parameters", "source"], ["search_parameters", "destination"], ["search_parameters", "type"], ["search_parameters", "message-status"]]
@@ -139,19 +151,19 @@ class Formatter:
         elif data_type == DataType.cirrus_transforms:
             defined_fields = [["insertDate"], ["id"], ["transform-name"], ["transform-channel"], ["source"], ["destination"], ["type"], ["comment"], ["split-result"], ["split-result-xpath"], ["next-destination"], ["generate-new-message-id"]]
         elif data_type == DataType.cirrus_transforms_steps:
-            defined_fields = [[heading] for heading in self._get_headings(data_type)]
+            defined_fields = [[heading] for heading in self._get_headings(data_type, options)]
         elif data_type == DataType.analysis_messages:
-            defined_fields = [[h] for h in self._get_dynamic_headings(data_type)]
+            defined_fields = [[h] for h in self._get_dynamic_headings(data_type, options)]
         elif data_type == DataType.payload_transform_mappings:
-            defined_fields = [[heading] for heading in self._get_headings(data_type)]
+            defined_fields = [[heading] for heading in self._get_headings(data_type, options)]
         elif data_type == DataType.host_log_mappings:
-            defined_fields = [[heading] for heading in self._get_headings(data_type)]
+            defined_fields = [[heading] for heading in self._get_headings(data_type, options)]
         elif data_type == DataType.log_statements:
-            defined_fields = [[heading] for heading in self._get_headings(data_type)]
+            defined_fields = [[heading] for heading in self._get_headings(data_type, options)]
         elif data_type == DataType.ice_failed_messages:
-            defined_fields = [[heading] for heading in self._get_headings(data_type)]
+            defined_fields = [[heading] for heading in self._get_headings(data_type, options)]
         elif data_type == DataType.ice_dashboard:
-            defined_fields = [[heading] for heading in self._get_headings(data_type)]
+            defined_fields = [[heading] for heading in self._get_headings(data_type, options)]
         else:
             defined_fields = []
         return self._get_defined_fields_for_datatype(data, defined_fields, self._get_translated_date_fields(data_type)) if defined_fields else []
@@ -185,13 +197,25 @@ class Formatter:
     def _get_defined_fields_for_datatype(self, data, fields_list, translatable_date_fields_list):
         return [self._get_field(data, fields_names_tuple, translatable_date_fields_list) for fields_names_tuple in fields_list]
 
-    def _get_dynamic_headings(self, data_type):
+    def _get_dynamic_headings(self, data_type, options):
         """To be implemented by subclasses"""
         return []
 
     def print_algo_heading(self, algorithm_name, options):
         if not options.get(QUIET):
             message_logger.info(f"Algorithm: {algorithm_name} results:")
+
+    def format_transform_sub_lists(self, transform_data, options):
+        # We don't need to do this for JSON output
+        if options.get(OUTPUT) == JSON:
+            return None
+        all_records = []
+        for current_transform in transform_data:
+            parent_prefix_dict = { parent_key: current_transform.get(parent_key) for parent_key in ["transform-name", "transform-channel"] }
+            if "transform-steps" in current_transform and current_transform["transform-steps"]:
+                updates_transform_data = [ dict(parent_prefix_dict, **record) for record in current_transform["transform-steps"] ]
+                all_records.extend(updates_transform_data)
+        return all_records
 
 ### #######################################################################
 ### Subclasses
@@ -217,11 +241,16 @@ class DynamicFormatter(Formatter):
         else:
             self._format_data_via_conversion(data_type, data, options)
 
-    def _get_dynamic_headings(self, data_type):
+    def _get_dynamic_headings(self, data_type, options):
+        is_verbose = True if options and options[VERBOSE] else False
+
+        # Handle Analysis msg headings which vary based on the algorithm used
         if data_type == DataType.analysis_messages:
             headings = ["unique-id", "source", "destination", "type", "parent-id", "process-id", "business-id", "message-status"]
             headings.extend(self.algorithm_names)
             return headings
+
+        # Handle Analysis msg headings which vary based on the algorithm used
         elif data_type in [DataType.analysis_yara_movements, DataType.transform_backtrace_fields]:
             algo_name = get_algorithm_name_from_data_type(data_type)
             if algo_name and algo_name in self.custom_algorithm_data_dict:
@@ -229,11 +258,42 @@ class DynamicFormatter(Formatter):
                 headings.extend(self.custom_algorithm_data_dict[algo_name])
                 headings.insert(0, "unique-id")
                 return headings
+
+        # Handle git data headings that are minimised or expanded based on verbose flag use
+        if data_type in [DataType.git_projects]:
+            if is_verbose:
+                return ["ID", "Name", "Visibility", "Description", "Archived"]
+            else:
+                return ["ID", "Name"]
+
+        if data_type == DataType.git_groups:
+            if is_verbose:
+                return ["ID", "Name", "Path", "Visibility", "Description"]
+            else:
+                return ["ID", "Name"]
+
+        if data_type == DataType.git_branches:
+            if is_verbose:
+                return ['Name, Merged, Protected, Developers_can_push, Developers_can_merge, Can_push, Default, Web_url']
+            else:
+                return ["Name"]
+
+        if data_type == DataType.git_commits:
+            if is_verbose:
+                return ['Id', 'Created_at', 'Parent_ids', 'Title', 'Message', 'Author_name', 'Author_email', 'Authored_date', 'Committer_name', 'Committer_email', 'Committed_date', 'Web_url']
+            else:
+                return ["Id", "Title", "Author_name", "Author_email", "Created_at"]
+
+        if data_type == DataType.git_tags:
+            if is_verbose:
+                return ["Name", "Path", "Location"]
+            else:
+                return ["Name"]
         return None
 
     def _format_data_via_conversion(self, data_type, data, options):
         if options.get(OUTPUT) == JSON:
-            headings = self._get_headings(data_type)
+            headings = self._get_headings(data_type, options)
             json_data = self.convert_array_to_json(headings, data)
             output_data = json_data
         else:
@@ -248,6 +308,14 @@ class DynamicFormatter(Formatter):
             if data:
                 headings = data.pop(0)
                 super()._format_to_table(data, headings)
+            else:
+                logger.warning("no data to output for type: {}".format(data_type))
+        elif data_type in [DataType.git_projects, DataType.git_groups, DataType.git_branches, DataType.git_commits, DataType.git_tags]:
+            logger.debug("formatting list of git data")
+            if data:
+                # headings = data.pop(0)
+                # super()._format_to_table(data, headings)
+                self._format(data_type, data, options)
             else:
                 logger.warning("no data to output for type: {}".format(data_type))
         else:
