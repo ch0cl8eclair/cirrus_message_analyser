@@ -171,3 +171,11 @@ To upgrade to version 3 from version 2:
 - Check the chrome browser version and chrome driver versions as per install instructions
 - ice dashboard functionality is enabled by default but to disable it alter the ```enable_ice_login``` flag  within ```resource/configuration.json```
 - Upgrade you credentials file to now have credentials for Cirrus, Elasticsearch and ICE
+
+To upgrade to version 4 from version 3:
+
+- git pull to get the latest version
+- install the new required gitlab package via pip
+- Check the chrome browser version and chrome driver versions as per install instructions
+- Upgrade you credentials file to now have credentials for GitLab
+
