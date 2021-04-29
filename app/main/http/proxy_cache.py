@@ -1,9 +1,13 @@
 import json
 import urllib
 
-from main.config.configuration import ConfigSingleton
+from main.config.configuration import ConfigSingleton, LOGGING_CONFIG_FILE
 from main.config.constants import CACHE_REF
 from main.model.model_utils import CacheMissException
+import logging
+from logging.config import fileConfig
+fileConfig(LOGGING_CONFIG_FILE)
+logger = logging.getLogger('requester')
 
 
 class ProxyCache:
@@ -35,12 +39,9 @@ class ProxyCache:
             pass
 
     def get_cache_result(self, url):
+        logger.debug(f"Getting cached result for key: {url}")
         cache_key = self.__generate_cache_key(url)
         return self.get_cache_result_via_key(cache_key)
-        try:
-            return self.__get_cache_value_if_present(cache_key)
-        except CacheMissException as ce:
-            raise ce
 
     def get_cache_result_dict(self, url):
         return json.loads(self.get_cache_result(url))
@@ -52,6 +53,7 @@ class ProxyCache:
             raise ce
 
     def store_cache_result(self, url, data, duration):
+        logger.debug(f"Storing cache for key: {url}")
         cache_key = self.__generate_cache_key(url)
         self.__store_cache(cache_key, data, duration)
 

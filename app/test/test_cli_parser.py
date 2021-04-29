@@ -154,7 +154,7 @@ class CommandLineParserTest(unittest.TestCase):
         self.assertEqual(expected, self.call_sut_func(cli_cmd))
 
     def test_git_list_projects_for_group(self):
-        cli_cmd = """cmc.py -v git -a list projects --group 27"""
+        cli_cmd = """cmc.py git -v -a list projects --group 27"""
         expected = {'cli-type': 'GIT', 'function': 'list', 'entity': 'projects', 'group': '27', 'options': {'output': 'table', 'quiet': False, 'verbose': True, 'all': True}}
         self.assertEqual(expected, self.call_sut_func(cli_cmd))
 

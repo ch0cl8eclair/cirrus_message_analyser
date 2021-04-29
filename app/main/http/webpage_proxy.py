@@ -1,13 +1,11 @@
 import argparse
 import json
-import sys
 
 import requests
 import urllib3
 from bs4 import BeautifulSoup, Tag
-from tabulate import tabulate
 
-from main.config.configuration import ConfigSingleton, LOGGING_CONFIG_FILE, CREDENTIALS_FILE, get_configuration_dict
+from main.config.configuration import ConfigSingleton, LOGGING_CONFIG_FILE, get_configuration_dict
 from main.config.constants import URLS, URL, CREDENTIALS, USERNAME, PASSWORD, \
     ICE_CREDENTIALS, ADM_CREDENTIALS, PROJECTS, NAME, DataType, ICE, SEC_30, REGION, ADAPTER_ID, SOURCE, DESTINATION, \
     TYPE, MESSAGE_ID_HEADING, EVENT_DATE_HEADING, ICE_LOGIN, ICE_SUBMIT, ADM_LOGIN, ADM_SUBMIT, ADM_LOCATIONS, \
@@ -15,7 +13,6 @@ from main.config.constants import URLS, URL, CREDENTIALS, USERNAME, PASSWORD, \
 from main.formatter.formatter import Formatter
 from main.http.proxy_cache import FailedToCommunicateWithSystem, ProxyCache
 from main.model.model_utils import CacheMissException
-from main.utils.utils import parse_json_from_file
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 import logging
@@ -56,17 +53,19 @@ class WebPageParser:
 
     def issue_get_request(self, url):
         logger.debug("Issuing webpage request: {}".format(url))
-        # Check the cache first
-        try:
-            return self.cache.get_cache_result_dict(url)
-        except CacheMissException as ce:
-            pass
+        # Check the cache first. Don't use cache until user has logged in.
+        if self.initialised:
+            try:
+                return self.cache.get_cache_result(url)
+            except CacheMissException as ce:
+                pass
         get = self.session.get(url)
         if get.status_code != requests.codes["ok"]:
             logger.error("Failed get webpage: {}, status code: {}".format(url, get.status_code))
             raise FailedToCommunicateWithSystem(ICE, url, get.status_code)
         # cache the get result
-        self.cache.store_cache_result_dict(url, get.text, self._get_default_cache_duration())
+        if self.initialised:
+            self.cache.store_cache_result(url, get.text, self._get_default_cache_duration())
         return get.text
 
     def issue_post_request(self, url, data_dict):
@@ -76,7 +75,9 @@ class WebPageParser:
             raise FailedToCommunicateWithSystem(ICE, url, post.status_code)
 
     def parse_data_page(self, url):
-        soup = BeautifulSoup(self.issue_get_request(url), features="html.parser")
+        site_text = self.issue_get_request(url)
+        logger.debug("Attempting to parse page text: {}".format(site_text[0:100].encode()))
+        soup = BeautifulSoup(site_text, features="html.parser")
         return soup
 
     def login_to_site(self):
@@ -87,6 +88,7 @@ class WebPageParser:
             self.update_with_site_credentials(self.generate_login_form_data(self._get_url_by_name(self.login_url))
             )
         )
+        logger.debug("Login to site completed")
 
     def initialise(self):
         """This could throw a FailedToCommunicateWithSystem"""
