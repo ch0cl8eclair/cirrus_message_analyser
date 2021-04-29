@@ -1,18 +1,19 @@
-import os
+import importlib
+import logging
 import sys
+from logging.config import fileConfig
 
 from main.cli.cli_parser import ANALYSE, DETAIL, GET_LOGS, WEBPACK
+from main.config.configuration import ConfigSingleton, LOGGING_CONFIG_FILE
 from main.config.constants import RULES, FUNCTION, OPTIONS, RULE, TIME, SEARCH_PARAMETERS, START_DATETIME, END_DATETIME, \
     DataType, NAME, UID, MSG_UID, MESSAGE_ID, LIMIT, ALGORITHMS, MESSAGE_STATUS, ALGORITHM_STATS, CACHE_REF, \
-    YARA_MOVEMENT_POST_JSON_ALGO, HAS_EMPTY_FIELDS_FOR_PAYLOAD, ARGUMENTS, HAS_MANDATORY_FIELDS_FOR_PAYLOAD, \
-    TRANSFORM_BACKTRACE_FIELDS, SOURCE, DESTINATION, TYPE, DataRequisites, FILE, OUTPUT, START_DATE, END_DATE, CIRRUS, \
-    SYSTEM, ICE, ENABLE_ELASTICSEARCH_QUERY, REGION, ENABLE_ICE_PROXY, ZIP_OUTPUT_FOLDER, OUTPUT_FOLDER, \
-    LOG_STATEMENT_FOUND, VERBOSE
+    YARA_MOVEMENT_POST_JSON_ALGO, ARGUMENTS, TRANSFORM_BACKTRACE_FIELDS, DataRequisites, FILE, OUTPUT, START_DATE, \
+    END_DATE, CIRRUS, \
+    SYSTEM, ICE, ENABLE_ELASTICSEARCH_QUERY, REGION, ENABLE_ICE_PROXY, LOG_STATEMENT_FOUND, VERBOSE
 from main.formatter.dual_formatter import LogAndFileFormatter
 from main.formatter.file_output import FileOutputFormatter
-
 from main.formatter.formatter import Formatter, AnalysisFormatter
-from main.http.cirrus_proxy import CirrusProxy, FailedToCommunicateWithSystem
+from main.http.cirrus_proxy import CirrusProxy
 from main.http.elk_proxy import ElasticsearchProxy
 from main.http.proxy_cache import FailedToCommunicateWithSystem
 from main.http.webpage_proxy import ICEProxy
@@ -20,14 +21,8 @@ from main.model.enricher import MessageEnricher
 from main.model.message_model import Message
 from main.model.model_utils import get_transform_search_parameters, InvalidConfigException, InvalidStateException
 from main.utils.utils import error_and_exit, calculate_start_and_end_times_from_duration, get_datetime_now_as_zulu, \
-    validate_start_and_end_times, zip_message_files, parse_datetime_str, parse_timezone_datetime_str, \
+    validate_start_and_end_times, parse_datetime_str, parse_timezone_datetime_str, \
     format_datetime_to_zulu, generate_webpack
-
-from main.config.configuration import ConfigSingleton, LOGGING_CONFIG_FILE
-import logging
-from logging.config import fileConfig
-import importlib
-
 
 LIST_RULES = "list_rules"
 CLEAR_CACHE = "clear-cache"
