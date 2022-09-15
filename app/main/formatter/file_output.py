@@ -7,8 +7,9 @@ from logging.config import fileConfig
 
 from main.config.configuration import get_configuration_dict, ConfigSingleton, LOGGING_CONFIG_FILE
 from main.config.constants import OUTPUT_FOLDER, DataType, LOGFILE, TOTAL_COUNT, ERROR_COUNT, HOST, LOG_CORRELATION_ID, \
-    ELASTICSEARCH_EXCLUDE_LOG_FILES, output_formats_to_extention_map
-from main.utils.utils import write_json_to_file, write_text_to_file, write_single_text_to_file
+    ELASTICSEARCH_EXCLUDE_LOG_FILES, output_formats_to_extention_map, MISC_CFG, CONFIG
+from main.utils.utils import write_json_to_file, write_text_to_file, write_single_text_to_file, \
+    get_configuration_for_app, unpack_config
 
 fileConfig(LOGGING_CONFIG_FILE)
 logger = logging.getLogger('main')
@@ -17,7 +18,9 @@ logger = logging.getLogger('main')
 class FileOutputFormatter:
     def __init__(self):
         self.configuration = ConfigSingleton(get_configuration_dict())
-        output_folder_str = self.configuration.get(OUTPUT_FOLDER)
+        app_cfg = get_configuration_for_app(self.configuration, MISC_CFG, "*", "*")
+        # output_folder_str = self.configuration.get(OUTPUT_FOLDER)
+        output_folder_str = unpack_config(app_cfg, MISC_CFG, CONFIG, OUTPUT_FOLDER)
         self.base_output_directory = output_folder_str
         if not path.exists(output_folder_str):
             os.mkdir(output_folder_str)

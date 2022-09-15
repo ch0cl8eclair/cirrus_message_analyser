@@ -2,11 +2,13 @@ import argparse
 
 from main.config.constants import FUNCTION, UID, TIME, CSV, JSON, TABLE, RULE, OPTIONS, OUTPUT, START_DATETIME, \
     END_DATETIME, LIMIT, FILE, ICE, CIRRUS, SYSTEM, REGION, PROJECT, GROUP, PROJECTS, GROUPS, PROJECTS_FOR_TEAM, ENTITY, \
-    BRANCHES, TAGS, COMMITS, PARAMETERS
+    BRANCHES, TAGS, COMMITS, PARAMETERS, US, EU, DEV, OAT, PRD, ICE_CFG
 
 from main.config.configuration import ConfigSingleton, LOGGING_CONFIG_FILE
 import logging
 from logging.config import fileConfig
+
+from main.utils.utils import error_and_exit
 
 fileConfig(LOGGING_CONFIG_FILE)
 logger = logging.getLogger('main')
@@ -25,7 +27,12 @@ WEBPACK = "webpack"
 
 output_types_list = [CSV, JSON, TABLE, FILE]
 
+environments_list = [PRD, OAT, DEV]
+regions_list = [EU, US]
+
+DASHBOARD = 'dashboard'
 MESSAGES = 'messages'
+
 MESSAGE_PAYLOADS = 'message-payloads'
 MESSAGE_EVENTS = 'message-events'
 MESSAGE_METADATA = 'message-metadata'
@@ -34,6 +41,7 @@ RULES = 'rules'
 list_commands = [MESSAGES, MESSAGE_PAYLOADS, MESSAGE_EVENTS, MESSAGE_METADATA, MESSAGE_TRANSFORMS, RULES]
 
 ADM = "ADM"
+ICE = "ICE"
 GIT = "GIT"
 COMMAND = "COMMAND"
 LOCATIONS = "locations"
@@ -53,6 +61,8 @@ def create_parent_parser():
     parent_args_group.add_argument("-v", "--verbose", action="store_true", default=False)
     parent_args_group.add_argument("-q", "--quiet", action="store_true", default=False)
     parser.add_argument("-o", "--output", choices=output_types_list, default="table", help="Select the output data format")
+    parser.add_argument("--env", choices=environments_list, default=PRD, help="Target environment")
+    parser.add_argument("--region", choices=regions_list, default=EU, help="Target region")
     return parser
 
 
@@ -68,7 +78,7 @@ def create_command_parser(parent_parser):
     command_parser.add_argument("--end-datetime", dest="end_datetime", help="Specify the end date time: 2020-05-17T10:30:08.877Z")
     command_parser.add_argument("--limit", type=int, choices=range(1, 100), help="upper limit on the number of msgs processed")
     command_parser.add_argument("--system", choices=["CIRRUS", "ICE"], help="The target system form which to retrieve data")
-    command_parser.add_argument("--region", choices=["EU", "US", "ZA", "AU"], help="The region with which the message is associated")
+    #command_parser.add_argument("--region", choices=["EU", "US", "ZA", "AU"], help="The region with which the message is associated")
     return command_parser
 
 
@@ -91,9 +101,15 @@ def create_git_parser(parent_parser):
     return git_parser
 
 
+def create_ice_parser(parent_parser):
+    ice_parser = argparse.ArgumentParser(description="ICE Interface commands", parents=[parent_parser])
+    ice_parser.add_argument("command", choices=[DASHBOARD, MESSAGES])
+    return ice_parser
+
+
 def create_processing_options(args, parse_all=False):
     """Generates an options dict which contain input and output command processing options"""
-    options = {'output': args.output, 'quiet': args.quiet, 'verbose': args.verbose}
+    options = {'env': args.env, 'output': args.output, 'quiet': args.quiet, 'verbose': args.verbose, 'region': args.region}
     if parse_all:
         options['all'] = args.all
     return options
@@ -108,12 +124,21 @@ def parse_command_line_statement(arguments_list):
         options = create_processing_options(adm_args)
         result_map = {OPTIONS: options}
         return _handle_adm_parameters(result_map, adm_args)
+
     elif len(arguments_list) > 2 and arguments_list[1].upper() == GIT:
         git_parser = create_git_parser(parent_parser)
         git_args = git_parser.parse_args(arguments_list[2:])
         options = create_processing_options(git_args, True)
         result_map = {OPTIONS: options}
         return _handle_git_parameters(result_map, git_args)
+
+    elif len(arguments_list) > 2 and arguments_list[1].upper() == ICE:
+        ice_parser = create_ice_parser(parent_parser)
+        ice_args = ice_parser.parse_args(arguments_list[2:])
+        options = create_processing_options(ice_args, False)
+        result_map = {OPTIONS: options}
+        return _handle_ice_parameters(result_map, ice_args)
+
     else:
         command_parser = create_command_parser(parent_parser)
         # Skip the first element as that should be the python script name
@@ -131,7 +156,7 @@ def _handle_command_parameters(result_map, command_args):
             result_map[FUNCTION] = func_str
         else:
             # TODO do the same print to std error and exit
-            logger.error("Invalid list argument given: %s", command_args.command_parameters)
+            error_and_exit(f"Invalid list argument given: [{command_args.command_parameters}], value must be one of: [{','.join(list_commands)}]")
     else:
         result_map[FUNCTION] = command_args.command
     if command_args.rule:
@@ -148,8 +173,8 @@ def _handle_command_parameters(result_map, command_args):
         result_map[LIMIT] = command_args.limit
     if command_args.system:
         result_map[SYSTEM] = command_args.system
-    if command_args.region:
-        result_map[REGION] = command_args.region
+    # if command_args.region:
+    #     result_map[REGION] = command_args.region
     log_requested_command(result_map)
     return result_map
 
@@ -178,6 +203,14 @@ def _handle_git_parameters(result_map, args):
         result_map[GROUP] = args.group
     if args.command_parameters:
         result_map[PARAMETERS] = args.command_parameters.encode().decode('unicode_escape')
+    log_requested_command(result_map)
+    return result_map
+
+
+def _handle_ice_parameters(result_map, args):
+    result_map[CLI_TYPE] = ICE
+    if args.command:
+        result_map[FUNCTION] = args.command
     log_requested_command(result_map)
     return result_map
 

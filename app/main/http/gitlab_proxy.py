@@ -32,6 +32,13 @@ class GitlabProxy:
         projects = self.git_interface.projects.list(**search_options)
         return projects
 
+    # The search term here seems to be for simple text only, but it is faster to execute on the server
+    def search_projects(self, search_term, options):
+        search_options = self.__handle_options__(options)
+        search_options["search"] = search_term
+        projects = self.git_interface.projects.list(**search_options)
+        return projects
+
     def list_projects_for_group(self, group_id, options):
         projects = None
         group = self.git_interface.groups.get(group_id)

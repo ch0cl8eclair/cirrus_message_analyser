@@ -84,13 +84,15 @@ class GitLabCommandProcessor:
             # This is the search string/regex
             if not parameters:
                 error_and_exit("GIT search requires the search text/regex to be passed in (within single quotes)")
-            p = re.compile(chomp_quotes(parameters))
+            unquoted_search_str = chomp_quotes(parameters)
+            p = re.compile(unquoted_search_str)
 
             if entity_to_list == PROJECTS:
                 if group:
                     result = self.git_proxy.list_projects_for_group(group, options)
                 else:
                     result = self.git_proxy.list_projects(options)
+                    # result = self.git_proxy.search_projects(unquoted_search_str, options)
                 data_type = DataType.git_projects
                 reformated_data = flatten_project_list(filter_projects_by_name(result, p), options)
 

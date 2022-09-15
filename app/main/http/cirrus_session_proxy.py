@@ -14,8 +14,11 @@ from selenium.webdriver.support.ui import WebDriverWait
 from main.config.configuration import ConfigSingleton, LOGGING_CONFIG_FILE
 from main.config.configuration import get_configuration_dict
 from main.config.constants import CREDENTIALS, USERNAME, PASSWORD, CHROME_DRIVER_FOLDER, \
-    CACHED_COOKIE, CACHE_REF, MIN_30, CIRRUS_CREDENTIALS, CIRRUS_LOGIN, URL
-from main.utils.utils import error_and_exit, get_config_for_website
+    MISC_CFG, REGION, ENV, CONFIG, CIRRUS_CFG, \
+    LOGIN, OPTIONS
+from main.utils.utils import error_and_exit, unpack_config, \
+    get_endpoint_url, get_merged_app_cfg, write_cookies_to_file_cache, chromedriver_file_exists, \
+    get_configuration_for_app
 
 fileConfig(LOGGING_CONFIG_FILE)
 logger = logging.getLogger('selenium')
@@ -31,10 +34,10 @@ def enter_data_into_field(text_file_component, text_to_enter, hit_return=False):
         text_file_component.send_keys(Keys.RETURN)
 
 
-def login(driver, config):
-    username = config.get(CREDENTIALS).get(CIRRUS_CREDENTIALS).get(USERNAME)
-    password = config.get(CREDENTIALS).get(CIRRUS_CREDENTIALS).get(PASSWORD)
-    logger.debug("Logging in with username: [{}] and password: [*******]".format(username))
+def login(driver, merged_app_cfg):
+    username = unpack_config(merged_app_cfg, CIRRUS_CFG, CREDENTIALS, USERNAME)
+    password = unpack_config(merged_app_cfg, CIRRUS_CFG, CREDENTIALS, PASSWORD)
+    logger.debug("Logging in with username: [{}] and password: [******]".format(username))
 
     username_field = driver.find_element_by_name("j_username")
     password_field = driver.find_element_by_name("j_password")
@@ -67,26 +70,6 @@ def verify_superuser_dropdown_display(driver, username):
         logger.error("Failed to find dropdown after switch to super user")
 
 
-def write_cookies_to_file_cache(config, cookies_str):
-    config.get(CACHE_REF).set(CACHED_COOKIE, cookies_str, expire=MIN_30)
-
-
-def read_cookies_file(config):
-    return config.get(CACHE_REF)[CACHED_COOKIE]
-
-
-def cookies_file_exists(config):
-    return CACHED_COOKIE in config.get(CACHE_REF)
-
-
-def chromedriver_file_exists(folder):
-    for root, dirs, files in os.walk(folder):
-        for file in files:
-            if file == "chromedriver" or file == "chromedriver.exe":
-                return True
-    return False
-
-
 def get_driver_folder_and_validate(configured_chrome_folder):
     p = pathlib.Path(pathlib.Path(__file__).parent, '..', '..', 'drivers')
     logger.debug("Path to driver is: {}, path exists: {}".format(str(p), os.path.exists(str(p))))
@@ -110,13 +93,15 @@ def get_driver_file_and_validate(chrome_driver_dir):
     return chrome_driver_file
 
 
-def obtain_cookies_from_cirrus_manually():
+def obtain_cookies_from_cirrus_driver(merged_app_cfg):
     # Get config details and check values
     config = ConfigSingleton()
-    configured_chrome_folder = config.get(CHROME_DRIVER_FOLDER)
+    app_cfg = get_configuration_for_app(config, MISC_CFG)
+    configured_chrome_folder = unpack_config(app_cfg, MISC_CFG, CONFIG, CHROME_DRIVER_FOLDER)
     chrome_driver_dir = get_driver_folder_and_validate(configured_chrome_folder)
     chrome_driver_file = get_driver_file_and_validate(chrome_driver_dir)
-    username = config.get(CREDENTIALS).get(CIRRUS_CREDENTIALS).get(USERNAME)
+
+    username = unpack_config(merged_app_cfg, CIRRUS_CFG, CREDENTIALS, USERNAME)
 
     logger.info("Attempting to login into Cirrus website to obtain superuser cookies")
     # Connect driver
@@ -130,8 +115,8 @@ def obtain_cookies_from_cirrus_manually():
         logger.exception(snce)
         error_and_exit("Failed to open Chrome instance to sign into Cirrus, please check you Chrome configuration")
 
-    web_configuration = get_config_for_website(config, CIRRUS_LOGIN)
-    web_url = web_configuration.get(URL)
+    web_url = get_endpoint_url(config, merged_app_cfg, CIRRUS_CFG, LOGIN)
+    logger.debug(f"connecting to following login page: {web_url}")
     driver.get(web_url)
 
     # Driver details
@@ -148,7 +133,7 @@ def obtain_cookies_from_cirrus_manually():
         )
     finally:
         logger.debug("Loaded page: {}, logging in...".format(driver.title))
-        login(driver, config)
+        login(driver, merged_app_cfg)
 
     try:
         user_select = WebDriverWait(driver, 10).until(
@@ -156,7 +141,7 @@ def obtain_cookies_from_cirrus_manually():
         )
     except TimeoutException:
         logger.error("Timeout occurred, attempting relogin")
-        login(driver, config)
+        login(driver, merged_app_cfg)
     finally:
         logger.debug("Found user dropdown select: {}".format(user_select.text))
         try:
@@ -192,16 +177,39 @@ def obtain_cookies_from_cirrus_manually():
     time.sleep(5)
     verify_superuser_dropdown_display(driver, username)
 
-    cirrus_super_user_cookie = "; ".join(["{}={}".format(cookie.get("name"), cookie.get("value")) for cookie in driver.get_cookies()])
-    logger.debug("Obtained the Cirrus cookie: {}".format(cirrus_super_user_cookie))
-    logger.info("Successfully obtained super user cookie for Cirrus API access")
-    write_cookies_to_file_cache(config, cirrus_super_user_cookie)
+    # cirrus_super_user_cookie = "; ".join(["{}={}".format(cookie.get("name"), cookie.get("value")) for cookie in driver.get_cookies()])
+    # logger.debug("Obtained the Cirrus cookie: {}".format(cirrus_super_user_cookie))
+    # logger.info("Successfully obtained super user cookie for Cirrus API access")
+    # cli_env = unpack_config(merged_app_cfg, CIRRUS_CFG, OPTIONS, ENV)
+    # cli_region = unpack_config(merged_app_cfg, CIRRUS_CFG, OPTIONS, REGION)
+    #
+    # write_cookies_to_file_cache(config, CIRRUS_CFG, cli_env, cli_region, cirrus_super_user_cookie)
+    capture_site_cookies(config, driver, CIRRUS_CFG, merged_app_cfg)
     driver.close()
+
+
+def capture_site_cookies(config, driver, app_name, merged_app_cfg):
+    cirrus_super_user_cookie = "; ".join(["{}={}".format(cookie.get("name"), cookie.get("value")) for cookie in driver.get_cookies()])
+    logger.debug("Obtained the site cookie: {}".format(cirrus_super_user_cookie))
+    logger.info(f"Successfully obtained user cookie for {app_name} access")
+    cli_env = unpack_config(merged_app_cfg, app_name, OPTIONS, ENV)
+    cli_region = unpack_config(merged_app_cfg, app_name, OPTIONS, REGION)
+    write_cookies_to_file_cache(config, app_name, cli_env, cli_region, cirrus_super_user_cookie)
+
+
+def capture_site_cookies_from_session(config, session, app_name, merged_app_cfg):
+    site_cookie = session.cookies
+    logger.info(f"Successfully obtained site cookie for {app_name} access")
+    cli_env = unpack_config(merged_app_cfg, app_name, OPTIONS, ENV)
+    cli_region = unpack_config(merged_app_cfg, app_name, OPTIONS, REGION)
+    write_cookies_to_file_cache(config, app_name, cli_env, cli_region, site_cookie)
 
 
 def main():
     config = ConfigSingleton(get_configuration_dict())
-    obtain_cookies_from_cirrus_manually()
+    cli_options = {'env': 'PRD', 'output': 'CSV', 'quiet': False, 'verbose': False, 'region': 'EU'}
+    merged_app_cfg = get_merged_app_cfg(config, CIRRUS_CFG, cli_options)
+    obtain_cookies_from_cirrus_driver(merged_app_cfg)
 
 
 if __name__ == '__main__':
