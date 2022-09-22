@@ -264,7 +264,12 @@ def unpack_endpoint_cfg(cfg):
 def unpack_config(app_cfg, app_name, cfg_type, cfg_key):
     cfg_subtype_result = app_cfg.get(app_name).get(cfg_type)
     if isinstance(cfg_subtype_result, list):
-        return cfg_subtype_result[0].get(cfg_key)
+        # iterate through cfgs to get flag, starting with specific cfg & going to generic cfg
+        for cfg in cfg_subtype_result:
+            flag_res = cfg.get(cfg_key)
+            if flag_res is not None:
+                return flag_res
+        return None
     elif isinstance(cfg_subtype_result, dict):
         return cfg_subtype_result.get(cfg_key)
 
@@ -288,6 +293,12 @@ def get_merged_app_cfg(configuration, app_name, options):
     app_cfg = get_configuration_for_app(configuration, app_name, options.get(ENV), options.get(REGION))
     app_cfg[app_name][OPTIONS] = {ENV: options.get(ENV), REGION: options.get(REGION)}
     return app_cfg
+
+
+def switch_app_cfg(configuration, merged_app_cfg, app_name):
+    current_app_name = merged_app_cfg.keys()[0]
+    options = merged_app_cfg[current_app_name][OPTIONS]
+    return get_merged_app_cfg(configuration, app_name, options)
 
 
 def update_session_with_cookie(configuration, session, app_name, env, region):

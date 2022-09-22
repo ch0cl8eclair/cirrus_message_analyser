@@ -113,9 +113,11 @@ applications:
     region: "*"
     host: elasticsearch-oat.adaptris.net
     port: 443
+    scheme: https
   - name: DEV
     region: "*"
     base_url: elk-stack.agb.rbxd.ds
+    scheme: http
   - name: "*"
     region: "*"
     elasticsearch_index: "filebeat-*"

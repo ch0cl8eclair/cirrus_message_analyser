@@ -1,6 +1,6 @@
 from main.algorithms.payload_transform_mapper import PayloadTransformMapper
 from main.config.constants import MESSAGE_ID, SEARCH_PARAMETERS, TYPE, DESTINATION, SOURCE, DataRequisites, \
-    ENABLE_ELASTICSEARCH_QUERY, MESSAGE_ID_HEADING, EVENT_DATE_HEADING, ENABLE_ICE_PROXY
+    ENABLE_ELASTICSEARCH_QUERY, MESSAGE_ID_HEADING, EVENT_DATE_HEADING, ENABLE_ICE_PROXY, MISC_CFG, CONFIG, ELASTIC_CFG
 
 from main.config.configuration import ConfigSingleton, LOGGING_CONFIG_FILE
 import logging
@@ -9,7 +9,7 @@ from logging.config import fileConfig
 from main.http.elk_proxy import ElasticsearchProxy
 from main.model.model_utils import get_transform_search_parameters, InvalidStateException, \
     extract_search_parameters_from_message_detail, SuspectedMissingTransformsException
-from main.utils.utils import parse_timezone_datetime_str
+from main.utils.utils import parse_timezone_datetime_str, get_configuration_for_app, unpack_config, switch_app_cfg
 
 fileConfig(LOGGING_CONFIG_FILE)
 logger = logging.getLogger('main')
@@ -32,8 +32,12 @@ class MessageEnricher:
         self.cirrus_proxy = cirrus_proxy
         self.ice_proxy = ice_proxy
         self.merged_app_cfg = merged_app_cfg
-        if bool(self.configuration.get(ENABLE_ELASTICSEARCH_QUERY)):
-            self.elasticsearch_proxy = ElasticsearchProxy()
+        app_cfg = get_configuration_for_app(self.configuration, MISC_CFG, "*", "*")
+        enable_elastic_str = unpack_config(app_cfg, MISC_CFG, CONFIG, ENABLE_ELASTICSEARCH_QUERY)
+        if bool(enable_elastic_str):
+            # switch to specific config for elastic search
+            es_merged_cfg = switch_app_cfg(self.configuration, merged_app_cfg, ELASTIC_CFG)
+            self.elasticsearch_proxy = ElasticsearchProxy(es_merged_cfg)
 
     def retrieve_data(self, prerequisites_data_set):
         """Retrieves the required prereq data for the current msg"""
@@ -147,7 +151,9 @@ class MessageEnricher:
         self.message.add_payload_transform_mappings(mapper.get_records())
 
     def lookup_message_location_on_log_server(self):
-        if bool(self.configuration.get(ENABLE_ELASTICSEARCH_QUERY)):
+        app_cfg = get_configuration_for_app(self.configuration, MISC_CFG, "*", "*")
+        enable_elastic_str = unpack_config(app_cfg, MISC_CFG, CONFIG, ENABLE_ELASTICSEARCH_QUERY)
+        if bool(enable_elastic_str):
             lookup_dict = self.elasticsearch_proxy.lookup_message(self.message.message_uid, self.message.payloads_list)
             self.message.add_server_location(lookup_dict)
         else:

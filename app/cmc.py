@@ -39,7 +39,7 @@ def main():
         if parsed_cli_parameters_dict[CLI_TYPE] == COMMAND:
             merged_app_cfg = get_merged_app_cfg(config, CIRRUS_CFG, options)
             # Hand over the message processor to action
-            processor = MessageProcessor()
+            processor = MessageProcessor(options)
             # Obtain the cirrus cookies if not present, but only for commands that require Cirrus
             # TODO list messages for ice currently still fetches cirrus cookies
             if processor.is_cirrus_based_request(parsed_cli_parameters_dict):

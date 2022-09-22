@@ -9,7 +9,8 @@ from main.config.constants import RULES, FUNCTION, OPTIONS, RULE, TIME, SEARCH_P
     DataType, NAME, UID, MSG_UID, MESSAGE_ID, LIMIT, ALGORITHMS, MESSAGE_STATUS, ALGORITHM_STATS, CACHE_REF, \
     YARA_MOVEMENT_POST_JSON_ALGO, ARGUMENTS, TRANSFORM_BACKTRACE_FIELDS, DataRequisites, FILE, OUTPUT, START_DATE, \
     END_DATE, CIRRUS, \
-    SYSTEM, ICE, ENABLE_ELASTICSEARCH_QUERY, REGION, ENABLE_ICE_PROXY, LOG_STATEMENT_FOUND, VERBOSE
+    SYSTEM, ICE, ENABLE_ELASTICSEARCH_QUERY, REGION, ENABLE_ICE_PROXY, LOG_STATEMENT_FOUND, VERBOSE, MISC_CFG, CONFIG, \
+    ELASTIC_CFG
 from main.formatter.dual_formatter import LogAndFileFormatter
 from main.formatter.file_output import FileOutputFormatter
 from main.formatter.formatter import Formatter, AnalysisFormatter
@@ -22,7 +23,7 @@ from main.model.message_model import Message
 from main.model.model_utils import get_transform_search_parameters, InvalidConfigException, InvalidStateException
 from main.utils.utils import error_and_exit, calculate_start_and_end_times_from_duration, get_datetime_now_as_zulu, \
     validate_start_and_end_times, parse_datetime_str, parse_timezone_datetime_str, \
-    format_datetime_to_zulu, generate_webpack
+    format_datetime_to_zulu, generate_webpack, get_configuration_for_app, unpack_config, get_merged_app_cfg
 
 LIST_RULES = "list_rules"
 CLEAR_CACHE = "clear-cache"
@@ -42,7 +43,7 @@ class MessageProcessor:
     """Main class that takes cli arguments and actions them by communicating with Cirrus"""
     # If user provides uid then map to message-id
 
-    def __init__(self):
+    def __init__(self, options):
         self.configuration = ConfigSingleton()
         self.cirrus_proxy = CirrusProxy()
         self.ice_proxy = ICEProxy()
@@ -53,8 +54,12 @@ class MessageProcessor:
         self.custom_algorithm_data = {} # Used to hold custom headings and other algorithm items
         file_generator = FileOutputFormatter()
         self.details_formatter = LogAndFileFormatter(self.formatter, file_generator, self.cirrus_proxy)
-        if bool(self.configuration.get(ENABLE_ELASTICSEARCH_QUERY)):
-            self.elasticsearch_proxy = ElasticsearchProxy()
+
+        app_cfg = get_configuration_for_app(self.configuration, MISC_CFG, "*", "*")
+        enable_elastic_str = unpack_config(app_cfg, MISC_CFG, CONFIG, ENABLE_ELASTICSEARCH_QUERY)
+        if bool(enable_elastic_str):
+            merged_app_cfg = get_merged_app_cfg(self.configuration, ELASTIC_CFG, options)
+            self.elasticsearch_proxy = ElasticsearchProxy(merged_app_cfg)
 
     def action_cli_request(self, cli_dict, merged_app_cfg):
         """Take the cli arguments, validate them further and action them"""
@@ -135,7 +140,10 @@ class MessageProcessor:
             if not target_system or target_system == "CIRRUS":
                 self.detail_cirrus_message(msg_model, options, merged_app_cfg)
             elif target_system == "ICE":
-                if not bool(self.configuration.get(ENABLE_ICE_PROXY)):
+                app_cfg = get_configuration_for_app(self.configuration, MISC_CFG, "*", "*")
+                enable_elastic_str = unpack_config(app_cfg, MISC_CFG, CONFIG, ENABLE_ICE_PROXY)
+
+                if not bool(enable_elastic_str):
                     error_and_exit("Please enable and configure ICE within the configuration")
                 if not ice_region:
                     error_and_exit("Unable to process detail command, you must specify the region associated with the ice message")
@@ -149,7 +157,9 @@ class MessageProcessor:
         elif function_to_call == GET_LOGS:
             if UID not in cli_dict:
                 error_and_exit("Message unique id must be provided for this request")
-            if not bool(self.configuration.get(ENABLE_ELASTICSEARCH_QUERY)):
+            app_cfg = get_configuration_for_app(self.configuration, MISC_CFG, "*", "*")
+            enable_elastic_str = unpack_config(app_cfg, MISC_CFG, CONFIG, ENABLE_ELASTICSEARCH_QUERY)
+            if not bool(enable_elastic_str):
                 error_and_exit("Please enable enable_elasticsearch_query flag and set parameters in config")
             message_uid = cli_dict.get(UID)
             self.__validate_time_window(cli_dict, search_parameters)
@@ -160,7 +170,9 @@ class MessageProcessor:
         elif function_to_call == WEBPACK:
             if UID not in cli_dict:
                 error_and_exit("Message unique id must be provided for this request")
-            if not bool(self.configuration.get(ENABLE_ELASTICSEARCH_QUERY)):
+            app_cfg = get_configuration_for_app(self.configuration, MISC_CFG, "*", "*")
+            enable_elastic_str = unpack_config(app_cfg, MISC_CFG, CONFIG, ENABLE_ELASTICSEARCH_QUERY)
+            if not bool(enable_elastic_str):
                 error_and_exit("Please enable enable_elasticsearch_query flag and set parameters in config")
             message_uid = cli_dict.get(UID)
             if not START_DATETIME in cli_dict:
