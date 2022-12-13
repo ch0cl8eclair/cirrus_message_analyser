@@ -1,5 +1,32 @@
 [
   {
+    "name": "YARA_36_ALL",
+    "search_parameters": {
+      "source": "uk0000000036",
+      "destination": "uk0000000037",
+      "type": "",
+      "message-status": "FAILED"
+    }
+  },
+  {
+    "name": "YARA_37_ALL",
+    "search_parameters": {
+      "source": "uk0000000037",
+      "destination": "uk0000000036",
+      "type": "",
+      "message-status": "FAILED"
+    }
+  },
+  {
+    "name": "YARA_73_ALL",
+    "search_parameters": {
+      "source": "uk0000000073",
+      "destination": "uk0000000036",
+      "type": "",
+      "message-status": "FAILED"
+    }
+  },
+  {
     "name": "YARA_MOVEMENTS_BASIC",
     "search_parameters": {
       "source": "uk0000000037",
@@ -92,5 +119,32 @@
       "type": ""
     },
     "algorithms": ["YaraMovementPostJson"]
+  },
+  {
+    "name": "DATACLOUD",
+    "search_parameters": {
+      "source": "uk0000001402",
+      "destination": "",
+      "type": "",
+      "message-status": ""
+    }
+  },
+  {
+    "name": "DATACLOUD_FAILED",
+    "search_parameters": {
+      "source": "uk0000001402",
+      "destination": "",
+      "type": "",
+      "message-status": "FAILED"
+    }
+  },
+  {
+    "name": "OMNICHANNEL",
+    "search_parameters": {
+      "destination": "pn0000000015",
+      "type": "",
+      "message-status": "FAILED"
+    }
   }
+
 ]

@@ -16,13 +16,15 @@ from main.config.constants import ELASTICSEARCH_CREDENTIALS, CREDENTIALS, \
     USERNAME, PASSWORD, ELASTICSEARCH_HOST, ELASTICSEARCH_SCHEME, ELASTICSEARCH_PORT, ELASTICSEARCH_INDEX, MESSAGE_ID, \
     HOST, LOGFILE, HOST_LOG_MAPPINGS, ELASTICSEARCH_SECONDS_MARGIN, \
     LOG_STATEMENT_FOUND, DataType, ELASTICSEARCH_EXCLUDE_LOG_FILES, HOST_LOG_CORRELATION_ID, LOG_LINE_STATS, \
-    ELASTICSEARCH_RETAIN_SERVER_OUTPUT, ELASTICSEARCH_SECONDS_MARGIN_FOR_ICE, LogSearchDirection, WEEK
+    ELASTICSEARCH_RETAIN_SERVER_OUTPUT, ELASTICSEARCH_SECONDS_MARGIN_FOR_ICE, LogSearchDirection, WEEK, ELASTIC_CFG, \
+    CONFIG
 from main.formatter.dual_formatter import LogAndFileFormatter
 from main.formatter.file_output import FileOutputFormatter
 from main.formatter.formatter import Formatter
 from main.model.model_utils import CacheMissException
 from main.utils.utils import parse_json_from_file, format_datetime_to_zulu, convert_timestamp_to_datetime_str, \
-    convert_timestamp_to_datetime, parse_timezone_datetime_str, parse_datetime_str, error_and_exit
+    convert_timestamp_to_datetime, parse_timezone_datetime_str, parse_datetime_str, error_and_exit, unpack_config, \
+    get_merged_app_cfg
 from main.http.proxy_cache import ProxyCache, FailedToCommunicateWithSystem
 from main.model.model_utils import CacheMissException
 
@@ -56,15 +58,18 @@ def _print_filtered_msg_line(record):
 class ElasticsearchProxy:
     """This class performs a message id lookup on the ELK log server to determine which machine the msg was processed on"""
 
-    def __init__(self):
+    def __init__(self, merged_app_cfg):
         self.successfully_initialised = False
         self.configuration = ConfigSingleton()
         self.file_output_service = FileOutputFormatter()
-        username = self.configuration.get(CREDENTIALS).get(ELASTICSEARCH_CREDENTIALS).get(USERNAME)
-        password = self.configuration.get(CREDENTIALS).get(ELASTICSEARCH_CREDENTIALS).get(PASSWORD)
-        host = self.configuration.get(ELASTICSEARCH_HOST)
-        port = int(self.configuration.get(ELASTICSEARCH_PORT))
-        scheme = self.configuration.get(ELASTICSEARCH_SCHEME)
+        self.merged_app_cfg = merged_app_cfg
+
+        username = unpack_config(merged_app_cfg, ELASTIC_CFG, CREDENTIALS, USERNAME)
+        password = unpack_config(merged_app_cfg, ELASTIC_CFG, CREDENTIALS, PASSWORD)
+        host = unpack_config(merged_app_cfg, ELASTIC_CFG, CONFIG, ELASTICSEARCH_HOST)
+        port = int(unpack_config(merged_app_cfg, ELASTIC_CFG, CONFIG, ELASTICSEARCH_PORT))
+        scheme = unpack_config(merged_app_cfg, ELASTIC_CFG, CONFIG, ELASTICSEARCH_SCHEME)
+
         self.es = Elasticsearch(
             [host],
             http_auth=(username, password),
@@ -82,8 +87,9 @@ class ElasticsearchProxy:
         self.cache = ProxyCache()
 
     def _retain_es_server_output(self):
-        if self.configuration.has_key(ELASTICSEARCH_RETAIN_SERVER_OUTPUT):
-            return bool(self.configuration.get(ELASTICSEARCH_RETAIN_SERVER_OUTPUT))
+        retain_output = unpack_config(self.merged_app_cfg, ELASTIC_CFG, CONFIG, ELASTICSEARCH_RETAIN_SERVER_OUTPUT)
+        if retain_output is not None:
+            return bool(retain_output)
         return True
 
     def _lookup_initial_message_results_grouped_by_host(self, message_uid, es_json_query):
@@ -117,7 +123,7 @@ class ElasticsearchProxy:
             pass
 
         # We need to filter out the exclude logs
-        exclude_logs = self.configuration.get(ELASTICSEARCH_EXCLUDE_LOG_FILES)
+        exclude_logs = unpack_config(self.merged_app_cfg, ELASTIC_CFG, CONFIG, ELASTICSEARCH_EXCLUDE_LOG_FILES)
 
         # do we have a correlation id, if so then rerun the search with it to get matching log statements
         statement_type_counts = {}
@@ -293,9 +299,11 @@ class ElasticsearchProxy:
         return None
 
     def _handle_paginated_results(self, es_json_query):
-        elasticsearch_max_result_limit = self.configuration.get("elasticsearch_max_result_limit")
-        elasticsearch_batch_size = self.configuration.get("elasticsearch_batch_size")
-        search_index = self.configuration.get(ELASTICSEARCH_INDEX)
+        # update this
+        elasticsearch_max_result_limit = unpack_config(self.merged_app_cfg, ELASTIC_CFG, CONFIG, "elasticsearch_max_result_limit")
+        elasticsearch_batch_size = unpack_config(self.merged_app_cfg, ELASTIC_CFG, CONFIG, "elasticsearch_batch_size")
+        search_index = unpack_config(self.merged_app_cfg, ELASTIC_CFG, CONFIG, ELASTICSEARCH_INDEX)
+
         logger.debug("Handling elastic search paginated request on index: {}".format(search_index))
         # Issue initial query
         es_json_query["size"] = elasticsearch_batch_size
@@ -397,7 +405,8 @@ class ElasticsearchProxy:
 
     def _get_seconds_time_delta(self, is_ice=False):
         config_variable = ELASTICSEARCH_SECONDS_MARGIN_FOR_ICE if is_ice else ELASTICSEARCH_SECONDS_MARGIN
-        seconds_delta = self.configuration.get(config_variable)
+        seconds_delta = unpack_config(self.merged_app_cfg, ELASTIC_CFG, CONFIG, config_variable)
+
         if not seconds_delta:
             seconds_delta = 10
         return datetime.timedelta(seconds=seconds_delta)
@@ -406,7 +415,7 @@ class ElasticsearchProxy:
         """Given the from and to Cirrus timestamps time window add a little margin either side"""
         logger.debug("_prepare_search_time_window_in_given_direction: {}".format(given_date_time))
         # default to 10 if not specified
-        seconds_delta = self.configuration.get(ELASTICSEARCH_SECONDS_MARGIN_FOR_ICE)
+        seconds_delta = unpack_config(self.merged_app_cfg, ELASTIC_CFG, CONFIG, ELASTICSEARCH_SECONDS_MARGIN_FOR_ICE)
         if not seconds_delta:
             seconds_delta = 10
         time_delta = datetime.timedelta(seconds=seconds_delta)
@@ -539,7 +548,7 @@ class ElasticsearchProxy:
         logger.debug("Obtaining log correlation ids from elk results")
         new_results_map = defaultdict(lambda: defaultdict(list))
         filter_strings = PROCESS_START_LOG_MESSAGES + PROCESSED_LOG_MESSAGES
-        exclude_logs = self.configuration.get(ELASTICSEARCH_EXCLUDE_LOG_FILES)
+        exclude_logs = unpack_config(self.merged_app_cfg, ELASTIC_CFG, CONFIG, ELASTICSEARCH_EXCLUDE_LOG_FILES)
         filtered_log_lines = [record2 for record2 in [record for record in result if '_source' in record and message_uid in record['_source']['message']] if self.filter_log_statements(record2, filter_strings)]
         for filtered_record in filtered_log_lines:
             # self._print_filtered_msg_line(filtered_record)
@@ -593,12 +602,13 @@ def main():
     # return
     #
     config = ConfigSingleton(get_configuration_dict())
-    es_proxy = ElasticsearchProxy()
+    options = {'output': 'table', 'quiet': False, 'verbose': False, 'env': 'PRD', 'region': 'EU'}
+    merged_app_cfg = get_merged_app_cfg(config, ELASTIC_CFG, options)
+    es_proxy = ElasticsearchProxy(merged_app_cfg)
     file_generator = FileOutputFormatter()
     formatter = Formatter()
     details_formatter = LogAndFileFormatter(formatter, file_generator, None)
 
-    options = {'output': 'table', 'quiet': False, 'verbose': False}
     # uid = "b4ff64a9-b4e8-457f-b332-f794700b3e28"
     # date_str = "2020-09-01 11:21:47 BST"
     # uid = "b96ba3c6-c113-47ac-accb-b5d01019b46e"

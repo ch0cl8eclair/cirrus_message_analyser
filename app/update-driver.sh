@@ -14,4 +14,4 @@ curl https://chromedriver.storage.googleapis.com/$LATEST_VERSION/chromedriver_wi
 unzip $TARGET_FILE -d $DRIVER_DIR
 
 # cleanup
-rm /tmp/curl2.out
+rm $TEMP_FILE

@@ -1,0 +1,149 @@
+---
+applications:
+- name: CIRRUS
+  env:
+  - name: PRD
+    region: EU
+    base_url: https://cirrusconnect.eu.f4f.com/cirrus-connect/
+  - name: PRD
+    region: US
+    base_url: https://cirrusconnect.us.f4f.com/cirrus-connect/
+  - name: OAT
+    region: EU
+    base_url: https://cirrusconnectoat.eu.f4f.com/cirrus-connect/
+  - name: OAT
+    region: US
+    base_url: https://cirrusconnectoat.us.f4f.com/cirrus-connect/
+  - name: DEV
+    region: EU
+    base_url: https://cirrusconnect.agb.rbxd.ds/cirrus-connect/
+  endpoints:
+  - name: LOGIN
+    type: GET
+    url: ''
+  - name: SEARCH_MESSAGES
+    type: POST
+    url: "/rest/tracking/message/search"
+    data_dict:
+      include-status-in-search: true
+      start-date: ''
+      end-date: ''
+      source: ''
+      destination: ''
+      type: ''
+  - name: GET_MESSAGE_PAYLOADS
+    type: GET
+    url: "/rest/tracking/payload/find-by-message-unique-id/{}"
+  - name: GET_MESSAGE_EVENTS
+    type: GET
+    url: "/rest/tracking/event/find-by-message-unique-id/{}"
+  - name: GET_MESSAGE_METADATA
+    type: GET
+    url: "/rest/tracking/metadata/find-by-message-unique-id/{}"
+  - name: FIND_MESSAGE_BY_ID
+    type: GET
+    url: "/rest/tracking/message/find-by-message-id/{}"
+  - name: GET_MESSAGE_TRANSFORMS
+    type: POST
+    url: "/rest/workbench/transform/search"
+    data_dict:
+      current-only: true
+      source: ''
+      destination: ''
+      type: ''
+- name: ADM
+  env:
+  - name: "*"
+    region: "*"
+    base_url: http://device.agb.rbxd.ds/ice/
+  endpoints:
+  - name: LOGIN
+    type: GET
+    url: "/index.php"
+  - name: ADM_SUBMIT
+    type: POST
+    url: "/index.php?login"
+  - name: ADM_LOCATIONS
+    type: GET
+    url: "/adm/view_location.php?module=ADM&side=4&subside=3"
+  - name: ADM_VERSIONS
+    type: GET
+    url: "/adm/view_versions.php?module=ADM&side=2"
+  - name: ADM_SCRIPTS
+    type: GET
+    url: "/adm/view_scripts.php?module=ADM&side=4&subside=4"
+  - name: ADM_CONFIGS
+    type: GET
+    url: "/adm/view_config.php?module=ADM&side=4&subside=2"
+  - name: ADM_ARTIFACTS
+    type: GET
+    url: "/adm/view_artifacts.php?module=ADM&side=3&subside=2"
+  - name: ADM_ARTIFACTS_STATUS
+    type: GET
+    url: "/adm/view_status.php?module=ADM&side=3&id={}&project={}"
+- name: ICE
+  env:
+  - name: PRD
+    region: "*"
+    base_url: https://iceprd.adaptris.net/ice/
+  endpoints:
+  - name: ICE_LOGIN
+    type: GET
+    url: ''
+  - name: ICE_SUBMIT
+    type: POST
+    url: index.php?login
+  - name: ICE_CALM_DASHBOARD
+    type: GET
+    url: calm/calm_dash.php?module=calm&side=1&subside=1
+  - name: ICE_FAILED_MESSAGES
+    type: POST
+    url: calm/summary_failevents.php?module=calm&side=1&subside=4&community={}
+  - name: ICE_INPROGRESS_MESSAGES
+    type: POST
+    url: calm/summary_inprogress.php?module=calm&side=1&subside=4&community={}
+- name: ELASTICSEARCH
+  env:
+  - name: PRD
+    region: "*"
+    host: elasticsearch-prd.adaptris.net
+    port: 443
+    scheme: https
+  - name: OAT
+    region: "*"
+    host: elasticsearch-oat.adaptris.net
+    port: 443
+    scheme: https
+  - name: DEV
+    region: "*"
+    base_url: elk-stack.agb.rbxd.ds
+    scheme: http
+  - name: "*"
+    region: "*"
+    elasticsearch_index: "filebeat-*"
+    elasticsearch_seconds_margin: 2
+    elasticsearch_seconds_margin_for_ice: 10
+    elasticsearch_batch_size: 500
+    elasticsearch_max_result_limit: 10000
+    elasticsearch_retain_server_output: false
+    elasticsearch_exclude_log_files: ["/opt/logs/eu0000000001", "/opt/logs/eu0000000004", "/opt/logs/uk0000000001", "/opt/logs/uk0000000067", "/opt/logs/uk0000000075"]
+
+- name: GRAFANA
+  env:
+  - name: PRD
+    region: "*"
+    base_url: https://grafana-eks-1.agv.eu-west-1.prod/
+  - name: TEST
+    region: "*"
+    base_url: https://grafana-eks-2.aga.eu-west-1.dev/
+
+- name: MISC
+  env:
+    - name: "*"
+      region: "*"
+      chrome-driver-folder: "chromedriver105_win32"
+      enable_ice_login: true
+      enable_selenium_login: true
+      enable_elasticsearch_query: true
+      output_folder: "../output"
+      zip-output_folder: "../output-zip"

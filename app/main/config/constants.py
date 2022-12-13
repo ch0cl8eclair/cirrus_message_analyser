@@ -1,6 +1,7 @@
 from enum import Enum
 import os
 
+APPLICATIONS = "applications"
 CREDENTIALS = "credentials"
 RULES = "rules"
 ELASTICSEARCH_CREDENTIALS = "elastic_log_search"
@@ -19,6 +20,17 @@ CSV = 'csv'
 JSON = 'json'
 TABLE = 'table'
 FILE = 'file'
+
+WILDCARD = "*"
+ENV = "env"
+CONFIG = "config"
+ENDPOINTS = "endpoints"
+
+PRD = 'PRD'
+OAT = 'OAT'
+DEV = 'DEV'
+EU = 'EU'
+US = 'US'
 
 ID = "id"
 URL = "url"
@@ -111,9 +123,9 @@ FIELD_TYPE = "field_type"
 CIRRUS_LOGIN = "CIRRUS_LOGIN"
 ENABLE_SELENIUM_LOGIN = "enable_selenium_login"
 ENABLE_ELASTICSEARCH_QUERY = "enable_elasticsearch_query"
-ELASTICSEARCH_HOST = "elasticsearch_host"
-ELASTICSEARCH_PORT = "elasticsearch_port"
-ELASTICSEARCH_SCHEME = "elasticsearch_scheme"
+ELASTICSEARCH_HOST = "host"
+ELASTICSEARCH_PORT = "port"
+ELASTICSEARCH_SCHEME = "scheme"
 ELASTICSEARCH_INDEX = "elasticsearch_index"
 ELASTICSEARCH_SECONDS_MARGIN = "elasticsearch_seconds_margin"
 ELASTICSEARCH_SECONDS_MARGIN_FOR_ICE = "elasticsearch_seconds_margin_for_ice"
@@ -144,10 +156,17 @@ PROJECTS = "projects"
 NAME = "name"
 SYSTEM = "system"
 ICE = "Ice"
+ICE_CFG = "ICE"
 CIRRUS = "Cirrus"
+CIRRUS_CFG = "CIRRUS"
+ADM_CFG = 'ADM'
+MISC_CFG = 'MISC'
+ELASTIC_CFG = 'ELASTICSEARCH'
 
 REGION = "region"
 ADAPTER_ID = "adapter_id"
+
+BASE_URL = "base_url"
 
 MESSAGE_ID_HEADING = 'Message ID'
 EVENT_DATE_HEADING = 'Event Date'
@@ -166,6 +185,8 @@ ICE_LOGIN = "ICE_LOGIN"
 ICE_SUBMIT = "ICE_SUBMIT"
 ICE_CALM_DASHBOARD = "ICE_CALM_DASHBOARD"
 ICE_FAILED_MESSAGES = "ICE_FAILED_MESSAGES"
+
+LOGIN = 'LOGIN'
 
 # Declaring these enums here to avoid circular reference issues, that are such a pain
 class DataType(Enum):

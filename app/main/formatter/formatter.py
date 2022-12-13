@@ -119,7 +119,7 @@ class Formatter:
         elif data_type == DataType.log_statements:
             return [TIME, LEVEL, LINE]
         if data_type == DataType.ice_failed_messages:
-            return ['Event Date', 'Message ID', 'Adapter ID', 'Service Details', 'Source', 'Destination', 'Message Type', 'Region', 'Delete']
+            return ['Count', 'Oldest Date', 'Newest Date', 'Adapter ID', 'Source', 'Destination', 'Message Type', 'Service Class', 'Notes', 'Summary', 'Delete']
         if data_type == DataType.ice_dashboard:
             return ['Community', 'In Progress Messages', 'Failed Event Messages', 'Heartbeat Failures', 'CALM Alerts']
 

@@ -14,6 +14,7 @@ class ProxyCache:
 
     def __init__(self):
         self.configuration = ConfigSingleton()
+        self.disabled = True
 
     def __get_cache(self):
         if self.configuration.has_key(CACHE_REF):
@@ -28,7 +29,7 @@ class ProxyCache:
         return "{}:{}".format(url, urllib.parse.urlencode(form_dict))
 
     def __get_cache_value_if_present(self, cache_key):
-        if cache_key in self.__get_cache():
+        if not self.disabled and cache_key in self.__get_cache():
             return self.__get_cache()[cache_key]
         raise CacheMissException(cache_key)
 

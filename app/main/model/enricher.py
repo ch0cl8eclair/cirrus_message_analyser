@@ -1,6 +1,6 @@
 from main.algorithms.payload_transform_mapper import PayloadTransformMapper
 from main.config.constants import MESSAGE_ID, SEARCH_PARAMETERS, TYPE, DESTINATION, SOURCE, DataRequisites, \
-    ENABLE_ELASTICSEARCH_QUERY, MESSAGE_ID_HEADING, EVENT_DATE_HEADING, ENABLE_ICE_PROXY
+    ENABLE_ELASTICSEARCH_QUERY, MESSAGE_ID_HEADING, EVENT_DATE_HEADING, ENABLE_ICE_PROXY, MISC_CFG, CONFIG, ELASTIC_CFG
 
 from main.config.configuration import ConfigSingleton, LOGGING_CONFIG_FILE
 import logging
@@ -9,7 +9,7 @@ from logging.config import fileConfig
 from main.http.elk_proxy import ElasticsearchProxy
 from main.model.model_utils import get_transform_search_parameters, InvalidStateException, \
     extract_search_parameters_from_message_detail, SuspectedMissingTransformsException
-from main.utils.utils import parse_timezone_datetime_str
+from main.utils.utils import parse_timezone_datetime_str, get_configuration_for_app, unpack_config, switch_app_cfg
 
 fileConfig(LOGGING_CONFIG_FILE)
 logger = logging.getLogger('main')
@@ -24,15 +24,20 @@ EVENTS = "events"
 class MessageEnricher:
     """Given a message model, this class determines which data to retrieve for the message and update the message model with the data"""
 
-    def __init__(self, message_model, cirrus_proxy, ice_proxy=None):
+    def __init__(self, message_model, cirrus_proxy, merged_app_cfg, ice_proxy=None):
         self.configuration = ConfigSingleton()
         if not message_model.has_rule and not message_model.message_uid:
             raise InvalidStateException("Message Enricher requires rule or message uid")
         self.message = message_model
         self.cirrus_proxy = cirrus_proxy
         self.ice_proxy = ice_proxy
-        if bool(self.configuration.get(ENABLE_ELASTICSEARCH_QUERY)):
-            self.elasticsearch_proxy = ElasticsearchProxy()
+        self.merged_app_cfg = merged_app_cfg
+        app_cfg = get_configuration_for_app(self.configuration, MISC_CFG, "*", "*")
+        enable_elastic_str = unpack_config(app_cfg, MISC_CFG, CONFIG, ENABLE_ELASTICSEARCH_QUERY)
+        if bool(enable_elastic_str):
+            # switch to specific config for elastic search
+            es_merged_cfg = switch_app_cfg(self.configuration, merged_app_cfg, ELASTIC_CFG)
+            self.elasticsearch_proxy = ElasticsearchProxy(es_merged_cfg)
 
     def retrieve_data(self, prerequisites_data_set):
         """Retrieves the required prereq data for the current msg"""
@@ -61,22 +66,22 @@ class MessageEnricher:
 
     def __retrieve_message_status(self):
         search_criteria = {MESSAGE_ID: self.get_message_id()}
-        result = self.cirrus_proxy.search_for_messages(search_criteria)
+        result = self.cirrus_proxy.search_for_messages(search_criteria, self.merged_app_cfg)
         if result and isinstance(result, list) and len(result) >= 1:
             self.message.add_status(result[0])
             return
         logger.warning("Failed to set message status with message model for: {}".format(self.get_message_id()))
 
     def __retrieve_message_events(self):
-        result = self.cirrus_proxy.get_events_for_message(self.get_message_id())
+        result = self.cirrus_proxy.get_events_for_message(self.get_message_id(), self.merged_app_cfg)
         self.message.add_events(result)
 
     def __retrieve_message_payloads(self):
-        result = self.cirrus_proxy.get_payloads_for_message(self.get_message_id())
+        result = self.cirrus_proxy.get_payloads_for_message(self.get_message_id(), self.merged_app_cfg)
         self.message.add_payloads(result)
 
     def __retrieve_message_metadata(self):
-        result = self.cirrus_proxy.get_metadata_for_message(self.get_message_id())
+        result = self.cirrus_proxy.get_metadata_for_message(self.get_message_id(), self.merged_app_cfg)
         self.message.add_metadata(result)
 
     def __retrieve_message_transforms(self):
@@ -89,7 +94,7 @@ class MessageEnricher:
             search_parameters = self.message.search_criteria
         # Obtain transforms
         if search_parameters:
-            result = self.cirrus_proxy.get_transforms_for_message(search_parameters)
+            result = self.cirrus_proxy.get_transforms_for_message(search_parameters, self.merged_app_cfg)
             # In case we don't get another with a source & destination search, then do separate searches
             if not result:
                 result = self.__retrieve_transforms_per_channel()
@@ -104,7 +109,7 @@ class MessageEnricher:
         for key in [DESTINATION, SOURCE]:
             temp_search_parameters = dict(search_parameters)
             del temp_search_parameters[key]
-            channel_transform_result = self.cirrus_proxy.get_transforms_for_message(temp_search_parameters)
+            channel_transform_result = self.cirrus_proxy.get_transforms_for_message(temp_search_parameters, self.merged_app_cfg)
             logger.debug("Obtained {} transforms by removing key: {} from search".format(len(channel_transform_result), key))
             if channel_transform_result:
                 combined_result.extend(channel_transform_result)
@@ -146,16 +151,18 @@ class MessageEnricher:
         self.message.add_payload_transform_mappings(mapper.get_records())
 
     def lookup_message_location_on_log_server(self):
-        if bool(self.configuration.get(ENABLE_ELASTICSEARCH_QUERY)):
+        app_cfg = get_configuration_for_app(self.configuration, MISC_CFG, "*", "*")
+        enable_elastic_str = unpack_config(app_cfg, MISC_CFG, CONFIG, ENABLE_ELASTICSEARCH_QUERY)
+        if bool(enable_elastic_str):
             lookup_dict = self.elasticsearch_proxy.lookup_message(self.message.message_uid, self.message.payloads_list)
             self.message.add_server_location(lookup_dict)
         else:
             logger.debug("Elastic search not enable for message search")
 
-    def lookup_ice_message(self):
+    def lookup_ice_message(self, options):
         if self.message.message_region and self.ice_proxy:
-            self.ice_proxy.initialise()
-            failed_details = self.ice_proxy.get_failed_messages_data(self.message.message_region)
+            self.ice_proxy.initialise(options)
+            failed_details = self.ice_proxy.get_failed_messages_data(self.message.message_region, options)
             for item in failed_details:
                 if item[MESSAGE_ID_HEADING] == self.message.message_uid:
                     ice_give_datetime = parse_timezone_datetime_str(item[EVENT_DATE_HEADING])

@@ -19,3 +19,4 @@ app/resources/credentials.json
 logs/**
 output/**
 output-zip/**
+app/resources/credentials.yaml

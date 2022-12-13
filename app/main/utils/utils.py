@@ -1,18 +1,31 @@
 import datetime
 import json
+import os
 import re
 import sys
 import os.path
 import zipfile
 from os import path
+import yaml
 
 from dateutil import parser
 from dateutil.tz import gettz
 from main.config.constants import *
+from main.config.constants import APPLICATIONS, WILDCARD, CREDENTIALS, CACHE_REF, CACHED_COOKIE, MIN_30
+
 
 DURATION_PATTERN = re.compile(r'(\d+)([dh])')
 DATETIME_REGEX = re.compile(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}')
 TZ_FILE = 'resources/timezones_dict.json'
+
+
+def parse_yaml_from_file(filename):
+    """Reads the given yaml file and returns back a dict representation"""
+    data = read_data_from_file(filename)
+    try:
+        return yaml.safe_load(data)
+    except yaml.YAMLError as exc:
+        error_and_exit("Failed to parse yaml config file {}".format(filename))
 
 
 def parse_json_from_file(filename):
@@ -174,8 +187,9 @@ def get_config_for_website(configuration, url_name):
 
 
 def generate_webpack(configuration, message_uid):
-    output_folder_str = configuration.get(OUTPUT_FOLDER)
-    zip_output_folder_str = configuration.get(ZIP_OUTPUT_FOLDER)
+    app_cfg = get_configuration_for_app(configuration, MISC_CFG, "*", "*")
+    output_folder_str = unpack_config(app_cfg, MISC_CFG, CONFIG, OUTPUT_FOLDER)
+    zip_output_folder_str = unpack_config(app_cfg, MISC_CFG, CONFIG, ZIP_OUTPUT_FOLDER)
     message_output_folder = os.path.join(output_folder_str, message_uid)
     zip_output_folder = os.path.join(zip_output_folder_str)
     message_uid,  message_output_folder, zip_output_folder
@@ -199,3 +213,136 @@ def zip_message_files(message_uid, message_output_folder, zip_output_folder):
                     if file.endswith(".log") or file.endswith(".txt"):
                         zipf.write(os.path.join(root, file), file)
     return os.path.abspath(target_zip_file)
+
+
+def get_configuration_for_app(configuration, app, env="PRD", region="EU"):
+    # print(f"get_configuration_for_app for app: {app}, env: {env} & region: {region}")
+    app_config = configuration.get(APPLICATIONS)
+    filtered_apps = [x for x in app_config if x.get(NAME) == app]
+    results = {}
+    for single_app in filtered_apps:
+        env_config_list = [ e for e in single_app.get(ENV) if e.get(NAME) in [env, WILDCARD] ]
+        # obtain all regions
+        configured_regions = [ x.get(REGION) for x in env_config_list ]
+        # if we have a matching region then return it
+        if region in configured_regions:
+            results[single_app.get(NAME)] = { CONFIG: list(filter(lambda x: x.get(REGION) == region, env_config_list)) }
+        # else return generic
+        elif WILDCARD in configured_regions:
+            results[single_app.get(NAME)] = { CONFIG: list(filter(lambda x: x.get(REGION) == WILDCARD, env_config_list)) }
+        else:
+            error_and_exit(f"Failed to find configuration for app: {app}, env: {env} and region: {region}")
+
+    credentials_config = configuration.get(CREDENTIALS)
+    filtered_credentials = [x for x in credentials_config.get(APPLICATIONS) if x.get(NAME) == app]
+    for single_cred in filtered_credentials:
+        configured_credentials = [e for e in single_cred.get(ENV) if e.get(NAME) in [env, WILDCARD]]
+        configured_regions = [ x.get(REGION) for x in configured_credentials ]
+        if region in configured_regions:
+            results[single_cred.get(NAME)][CREDENTIALS] = list(filter(lambda x: x.get(REGION) == region, configured_credentials))
+        elif WILDCARD in configured_regions:
+            results[single_cred.get(NAME)][CREDENTIALS] = list(filter(lambda x: x.get(REGION) == WILDCARD, configured_credentials))
+        else:
+            error_and_exit(f"Failed to find credentials for app: {app}, env: {env} and region: {region}")
+
+    # print(json.dumps(results))
+    return results
+
+
+def get_config_endpoint(configuration, app, endpoint_name):
+    app_config = configuration.get(APPLICATIONS)
+    filtered_apps = [x for x in app_config if x.get(NAME) == app]
+    filtered_endpoints = [endpoint for endpoint in filtered_apps[0].get(ENDPOINTS) if endpoint.get(NAME) == endpoint_name]
+    results = {NAME: app, ENDPOINTS: filtered_endpoints}
+    return results
+
+
+def unpack_endpoint_cfg(cfg):
+    return cfg.get(ENDPOINTS)[0]
+
+
+def unpack_config(app_cfg, app_name, cfg_type, cfg_key):
+    cfg_subtype_result = app_cfg.get(app_name).get(cfg_type)
+    if isinstance(cfg_subtype_result, list):
+        # iterate through cfgs to get flag, starting with specific cfg & going to generic cfg
+        for cfg in cfg_subtype_result:
+            flag_res = cfg.get(cfg_key)
+            if flag_res is not None:
+                return flag_res
+        return None
+    elif isinstance(cfg_subtype_result, dict):
+        return cfg_subtype_result.get(cfg_key)
+
+
+def form_system_url(app_cfg, target_endpoint):
+    # use basic str concat as we have placeholders
+    if target_endpoint:
+        url = app_cfg[0].get(BASE_URL) + "/" + target_endpoint.get(URL)
+        return url.replace('///', '/')
+    return app_cfg[0].get(BASE_URL)
+
+
+def get_endpoint_url(configuration, merged_app_cfg, app_name, target_endpoint):
+    submit_endpoint_cfg = get_config_endpoint(configuration, app_name, target_endpoint)
+    submit_url = form_system_url(merged_app_cfg.get(app_name).get(CONFIG), unpack_endpoint_cfg(submit_endpoint_cfg))
+    return submit_url
+
+
+def get_merged_app_cfg(configuration, app_name, options):
+    '''Main util method to get the required configuration'''
+    app_cfg = get_configuration_for_app(configuration, app_name, options.get(ENV), options.get(REGION))
+    app_cfg[app_name][OPTIONS] = {ENV: options.get(ENV), REGION: options.get(REGION)}
+    return app_cfg
+
+
+def switch_app_cfg(configuration, merged_app_cfg, app_name):
+    current_app_name = merged_app_cfg.keys()[0]
+    options = merged_app_cfg[current_app_name][OPTIONS]
+    return get_merged_app_cfg(configuration, app_name, options)
+
+
+def update_session_with_cookie(configuration, session, app_name, env, region):
+    cookie = read_cookies_file(configuration, app_name, env, region)
+    if cookie:
+        session.cookies.update(cookie)
+
+
+def read_cookies_file(config, system_name, environment, region):
+    print(f"read_cookies_file with app: {system_name}, env: {environment}, region: {region}")
+    cookie_key = generate_cookie_key(system_name, environment, region)
+    cache = config.get(CACHE_REF)
+    if cache and cookie_key in cache:
+        print(f"Returning cookie for app: {system_name}, env: {environment}, region: {region} as: {cache[cookie_key]}")
+        return cache[cookie_key]
+    else:
+        print("No cookies found in cache!!", file=sys.stderr)
+    return ''
+
+
+def cookies_file_exists(config, system_name, environment, region):
+    cookie_key = generate_cookie_key(system_name, environment, region)
+    # TODO investigate this
+    if config.get(CACHE_REF):
+        return cookie_key in config.get(CACHE_REF)
+    return False
+
+
+def write_cookies_to_file_cache(config, system_name, environment, region, cookies_str):
+    cache = config.get(CACHE_REF)
+    # if cache:
+    cookie_key = generate_cookie_key(system_name, environment, region)
+    cache.set(cookie_key, cookies_str, expire=MIN_30)
+    # else:
+    #     print("Failed to set cookies for site!", file=sys.stderr)
+
+
+def generate_cookie_key(system_name, environment, region):
+    return f"{CACHED_COOKIE}-{system_name}-{environment}-{region}"
+
+
+def chromedriver_file_exists(folder):
+    for root, dirs, files in os.walk(folder):
+        for file in files:
+            if file == "chromedriver" or file == "chromedriver.exe":
+                return True
+    return False

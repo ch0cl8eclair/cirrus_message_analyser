@@ -2,10 +2,10 @@ import os
 
 from main.config.constants import CREDENTIALS, RULES, CHROME_DRIVER_FOLDER, PASSWORD, USERNAME, CIRRUS_USERNAME, \
     CIRRUS_PASSWORD, CIRRUS_CREDENTIALS
-from main.utils.utils import parse_json_from_file
+from main.utils.utils import parse_json_from_file, parse_yaml_from_file
 
-CONFIGURATION_FILE = "resources/configuration.json"
-CREDENTIALS_FILE   = "resources/credentials.json"
+CONFIGURATION_FILE = "resources/configuration.yaml"
+CREDENTIALS_FILE   = "resources/credentials.yaml"
 RULES_FILE         = "resources/rules.json"
 LOGGING_CONFIG_FILE = os.path.join(os.path.dirname(__file__), '../../resources/logging_config.ini')
 
@@ -43,8 +43,8 @@ class ConfigSingleton(Borg):
 
 
 def read_configuration_file_into_map():
-    main_config = parse_json_from_file(CONFIGURATION_FILE)
-    credentials = parse_json_from_file(CREDENTIALS_FILE)
+    main_config = parse_yaml_from_file(CONFIGURATION_FILE)
+    credentials = parse_yaml_from_file(CREDENTIALS_FILE)
     rules = parse_json_from_file(RULES_FILE)
     main_config[CREDENTIALS] = credentials
     main_config[RULES] = rules
@@ -69,3 +69,5 @@ def get_configuration_dict():
     main_config = read_configuration_file_into_map()
     read_environment_variables(main_config)
     return main_config
+
+
