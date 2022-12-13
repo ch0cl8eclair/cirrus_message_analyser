@@ -51,7 +51,7 @@ You can set your Cirrus credentials either in the credentials.json file or in th
 
 Set your username and password into the following file:
 ```
-app\resources\credentials.json
+app\resources\credentials.yaml
 ```
 
 Define rules to process categories of messages such as the search parameters and the algorithms they should analysed with.
@@ -179,3 +179,11 @@ To upgrade to version 4 from version 3:
 - Check the chrome browser version and chrome driver versions as per install instructions
 - Upgrade you credentials file to now have credentials for GitLab
 
+To upgrade from version 5 from version 4:
+
+- git pull to get the latest version
+- install the new required gitlab package via pip
+- Check the chrome browser version and chrome driver versions as per install instructions
+- generate a new yaml credentials file```cp resource/configuration-template.yaml resource/configuration.yaml```
+- add your various site credentials into this file (the previous credentials.json is nolonger used and can be removed)
+- app configuration now resides in configuration.yaml
