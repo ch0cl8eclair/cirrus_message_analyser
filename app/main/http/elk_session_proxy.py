@@ -131,7 +131,7 @@ def obtain_cookies_from_cirrus_manually():
         logger.exception(snce)
         error_and_exit("Failed to open Chrome instance to sign into Cirrus, please check you Chrome configuration")
 
-    elk_url = "https://bklair:TheAteam@elk-stack-oat.adaptris.net/"
+    elk_url = "https://username:pwd@elk-stack-oat.adaptris.net/"
     driver.get(elk_url)
 
     # Driver details
