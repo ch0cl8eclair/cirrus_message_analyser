@@ -23,7 +23,8 @@ from main.model.message_model import Message
 from main.model.model_utils import get_transform_search_parameters, InvalidConfigException, InvalidStateException
 from main.utils.utils import error_and_exit, calculate_start_and_end_times_from_duration, get_datetime_now_as_zulu, \
     validate_start_and_end_times, parse_datetime_str, parse_timezone_datetime_str, \
-    format_datetime_to_zulu, generate_webpack, get_configuration_for_app, unpack_config, get_merged_app_cfg
+    format_datetime_to_zulu, generate_webpack, get_configuration_for_app, unpack_config, get_merged_app_cfg, \
+    parser_datetime_by_system
 
 LIST_RULES = "list_rules"
 CLEAR_CACHE = "clear-cache"
@@ -353,24 +354,16 @@ class MessageProcessor:
             # if we just have start then set now as end time
             if not START_DATETIME in cli_dict:
                 error_and_exit("Please provide a time window to search ie 1d or given start and end datetime values")
-            start_string = MessageProcessor.__parser_datetime_by_system(system_to_contact, cli_dict.get(START_DATETIME))
+            start_string = parser_datetime_by_system(system_to_contact, cli_dict.get(START_DATETIME))
             end_string = None
             if system_to_contact == CIRRUS.upper():
                 if not END_DATETIME in cli_dict:
                     end_string = get_datetime_now_as_zulu()
                 else:
-                    end_string = MessageProcessor.__parser_datetime_by_system(system_to_contact, cli_dict.get(END_DATETIME))
+                    end_string = parser_datetime_by_system(system_to_contact, cli_dict.get(END_DATETIME))
             time_params = validate_start_and_end_times(start_string, end_string)
             search_parameters.update(time_params)
             logger.info("Adding time window to search of start-date: {}, end-date: {}".format(start_string, end_string))
-
-    @staticmethod
-    def __parser_datetime_by_system(given_system, given_datetime_str):
-        if given_system == ICE.upper():
-            ice_given_datetime = parse_timezone_datetime_str(given_datetime_str)
-            return format_datetime_to_zulu(ice_given_datetime)
-        else:
-            return given_datetime_str
 
     def __add_message_stats(self, msg_model):
         self.statistics_map[msg_model.message_uid] = {MESSAGE_STATUS: msg_model.status_dict}

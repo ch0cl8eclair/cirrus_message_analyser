@@ -164,6 +164,8 @@ class Formatter:
             defined_fields = [[heading] for heading in self._get_headings(data_type, options)]
         elif data_type == DataType.ice_dashboard:
             defined_fields = [[heading] for heading in self._get_headings(data_type, options)]
+        elif data_type == DataType.loki_logs:
+            defined_fields = [[heading] for heading in self._get_headings(data_type, options)]
         else:
             defined_fields = []
         return self._get_defined_fields_for_datatype(data, defined_fields, self._get_translated_date_fields(data_type)) if defined_fields else []
@@ -289,6 +291,12 @@ class DynamicFormatter(Formatter):
                 return ["Name", "Path", "Location"]
             else:
                 return ["Name"]
+
+        if data_type == DataType.loki_logs:
+            if is_verbose:
+                return ["time", "pod", "log"]
+            else:
+                return ["log"]
         return None
 
     def _format_data_via_conversion(self, data_type, data, options):

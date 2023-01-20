@@ -137,6 +137,21 @@ applications:
     region: "*"
     base_url: https://grafana-eks-2.aga.eu-west-1.dev/
 
+- name: LOKI
+  env:
+    - name: PRD
+      region: "*"
+      base_url: https://grafana-eks-03-eu.agv.eu-west-1.dsg.lnrsg.io/
+    - name: PRE
+      region: "*"
+      base_url: https://grafana-eks-03-eu.agv.eu-west-1.dsg.lnrsg.io/
+    - name: TEST
+      region: "*"
+      base_url: https://grafana-eks-2.aga.eu-west-1.dsg.lnrsg.io/
+    - name: DEV
+      region: "*"
+      base_url: https://grafana-eks-2.aga.eu-west-1.dsg.lnrsg.io/
+
 - name: MISC
   env:
     - name: "*"

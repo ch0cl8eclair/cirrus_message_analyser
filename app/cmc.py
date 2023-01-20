@@ -6,12 +6,13 @@ from logging.config import fileConfig
 from diskcache import Cache
 
 from main.adm_command_processor import ADMCommandProcessor
-from main.cli.cli_parser import parse_command_line_statement, COMMAND, CLI_TYPE, ADM, GIT, ICE
+from main.cli.cli_parser import parse_command_line_statement, COMMAND, CLI_TYPE, ADM, GIT, ICE, LOKI
 from main.config.configuration import ConfigSingleton, get_configuration_dict
-from main.config.constants import CACHE_REF, OPTIONS, ICE_CFG, ADM_CFG, CIRRUS_CFG, TABLE, OUTPUT, ENV, REGION
+from main.config.constants import CACHE_REF, OPTIONS, ICE_CFG, ADM_CFG, CIRRUS_CFG, TABLE, OUTPUT, ENV, REGION, LOKI_CFG
 from main.gitlab_command_processor import GitLabCommandProcessor
 from main.http.cirrus_session_proxy import obtain_cookies_from_cirrus_driver
 from main.ice_command_processor import ICECommandProcessor
+from main.loki_command_processor import LokiCommandProcessor
 from main.message_processor import MessageProcessor
 from main.utils.utils import get_merged_app_cfg, unpack_config, cookies_file_exists
 
@@ -69,6 +70,12 @@ def main():
             # Override output to Table
             options[OUTPUT] = TABLE
             processor = ICECommandProcessor()
+            processor.action_cli_request(parsed_cli_parameters_dict, merged_app_cfg)
+
+        # Handle Loki log search command
+        elif parsed_cli_parameters_dict[CLI_TYPE] == LOKI:
+            merged_app_cfg = get_merged_app_cfg(config, LOKI_CFG, options)
+            processor = LokiCommandProcessor()
             processor.action_cli_request(parsed_cli_parameters_dict, merged_app_cfg)
 
 

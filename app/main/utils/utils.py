@@ -1,6 +1,6 @@
 import datetime
 import json
-import os
+import time
 import re
 import sys
 import os.path
@@ -154,6 +154,19 @@ def parse_timezone_datetime_str(datetime_str):
 
 def format_datetime_to_zulu(provided_datetime):
     return provided_datetime.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
+
+
+def parse_datetime_from_zulu(zulu_str) -> datetime:
+    try:
+        return datetime.datetime.strptime(zulu_str, "%Y-%m-%dT%H:%M:%S.%f%z")
+    except ValueError:
+        # Perhaps the datetime has a whole number of seconds with no decimal
+        # point. In that case, this will work:
+        return datetime.datetime.strptime(zulu_str, "%Y-%m-%dT%H:%M:%S%z")
+
+
+def convert_datetime_to_unix(my_datetime):
+    return int(time.mktime(my_datetime.timetuple()))
 
 
 def get_datetime_now_as_zulu():
@@ -346,3 +359,11 @@ def chromedriver_file_exists(folder):
             if file == "chromedriver" or file == "chromedriver.exe":
                 return True
     return False
+
+
+def parser_datetime_by_system(given_system, given_datetime_str):
+    if given_system == ICE.upper():
+        ice_given_datetime = parse_timezone_datetime_str(given_datetime_str)
+        return format_datetime_to_zulu(ice_given_datetime)
+    else:
+        return given_datetime_str

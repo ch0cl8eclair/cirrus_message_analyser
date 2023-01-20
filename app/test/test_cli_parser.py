@@ -8,6 +8,9 @@ class CommandLineParserTest(unittest.TestCase):
     def call_sut_func(self, cli_statement):
         return parse_command_line_statement(cli_statement.split())
 
+    def call_sut_func_array(self, cli_array):
+        return parse_command_line_statement(cli_array)
+
     def test_list_messages(self):
         cli_cmd = """cmc.py list messages --rule YARA_MOVEMENTS_BASIC --time 1d"""
         expected = {'cli-type': 'COMMAND', 'function': 'list_messages', 'rule': 'YARA_MOVEMENTS_BASIC', 'time': '1d', 'options': {'env': 'PRD', 'env': 'PRD', 'output': 'table', 'quiet': False, 'region': 'EU', 'verbose': False}}
@@ -187,6 +190,11 @@ class CommandLineParserTest(unittest.TestCase):
         cli_cmd = """cmc.py git search projects '.*[pP]].+'"""
         expected = {'cli-type': 'GIT', 'function': 'search', 'entity': 'projects', 'options': {'env': 'PRD', 'output': 'table', 'quiet': False, 'region': 'EU', 'verbose': False, 'all': False}, 'parameters': "'.*[pP]].+'"}
         self.assertEqual(expected, self.call_sut_func(cli_cmd))
+
+    def test_loki_logs(self):
+        cli_array = ["cmc.py", "loki", '{namespace="omnichannel-test",  app="adapter"} |= "msg produced" | logfmt',  "--start-datetime", "2020-08-19T10:05:16.000Z", "--end-datetime", "2020-08-19T10:05:19.000Z"]
+        expected = {'cli-type': 'LOKI', 'query': '''{namespace="omnichannel-test",  app="adapter"} |= "msg produced" | logfmt''', 'start-datetime': '2020-08-19T10:05:16.000Z', 'end-datetime': '2020-08-19T10:05:19.000Z', 'options': {'env': 'PRD', 'output': 'table', 'quiet': False, 'region': 'EU', 'verbose': False}}
+        self.assertEqual(expected, self.call_sut_func_array(cli_array))
 
 
 if __name__ == '__main__':

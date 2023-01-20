@@ -27,7 +27,9 @@ CONFIG = "config"
 ENDPOINTS = "endpoints"
 
 PRD = 'PRD'
+PRE = 'PRE'
 OAT = 'OAT'
+TEST = 'TEST'
 DEV = 'DEV'
 EU = 'EU'
 US = 'US'
@@ -65,7 +67,7 @@ COMMITS = 'commits'
 TAGS = 'tags'
 BRANCHES = 'branches'
 PARAMETERS = 'parameters'
-
+QUERY = 'query'
 TODAY = "today"
 YESTERDAY = "yesterday"
 DAYS = "days"
@@ -162,6 +164,7 @@ CIRRUS_CFG = "CIRRUS"
 ADM_CFG = 'ADM'
 MISC_CFG = 'MISC'
 ELASTIC_CFG = 'ELASTICSEARCH'
+LOKI_CFG = "LOKI"
 
 REGION = "region"
 ADAPTER_ID = "adapter_id"
@@ -219,6 +222,7 @@ class DataType(Enum):
     git_branches = 27
     git_tags = 28
     git_commits = 29
+    loki_logs = 30
 
 
 class DataRequisites(Enum):

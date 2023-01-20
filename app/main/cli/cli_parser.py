@@ -2,7 +2,7 @@ import argparse
 
 from main.config.constants import FUNCTION, UID, TIME, CSV, JSON, TABLE, RULE, OPTIONS, OUTPUT, START_DATETIME, \
     END_DATETIME, LIMIT, FILE, ICE, CIRRUS, SYSTEM, REGION, PROJECT, GROUP, PROJECTS, GROUPS, PROJECTS_FOR_TEAM, ENTITY, \
-    BRANCHES, TAGS, COMMITS, PARAMETERS, US, EU, DEV, OAT, PRD, ICE_CFG
+    BRANCHES, TAGS, COMMITS, PARAMETERS, US, EU, DEV, OAT, PRD, ICE_CFG, QUERY, TEST, PRE
 
 from main.config.configuration import ConfigSingleton, LOGGING_CONFIG_FILE
 import logging
@@ -27,7 +27,7 @@ WEBPACK = "webpack"
 
 output_types_list = [CSV, JSON, TABLE, FILE]
 
-environments_list = [PRD, OAT, DEV]
+environments_list = [PRD, PRE, OAT, TEST, DEV]
 regions_list = [EU, US]
 
 DASHBOARD = 'dashboard'
@@ -43,6 +43,7 @@ list_commands = [MESSAGES, MESSAGE_PAYLOADS, MESSAGE_EVENTS, MESSAGE_METADATA, M
 ADM = "ADM"
 ICE = "ICE"
 GIT = "GIT"
+LOKI = "LOKI"
 COMMAND = "COMMAND"
 LOCATIONS = "locations"
 CONFIGS = "configs"
@@ -107,6 +108,15 @@ def create_ice_parser(parent_parser):
     return ice_parser
 
 
+def create_loki_parser(parent_parser):
+    loki_parser = argparse.ArgumentParser(description="LOKI log search commands", parents=[parent_parser])
+    loki_parser.add_argument("query", help='''Specify the LokiQL eg "{namespace='omnichannel-test',app='adapter'}|='msg produced'|json|line_format '{{.log}}'" ''')
+    loki_parser.add_argument("--time", help="Specify the time window to filter on eg today, yesterday, 1d, 3h")
+    loki_parser.add_argument("--start-datetime", dest="start_datetime", help="Specify the start date time: 2020-05-17T10:30:08.877Z")
+    loki_parser.add_argument("--end-datetime", dest="end_datetime", help="Specify the end date time: 2020-05-17T10:30:08.877Z")
+    return loki_parser
+
+
 def create_processing_options(args, parse_all=False):
     """Generates an options dict which contain input and output command processing options"""
     options = {'env': args.env, 'output': args.output, 'quiet': args.quiet, 'verbose': args.verbose, 'region': args.region}
@@ -138,6 +148,13 @@ def parse_command_line_statement(arguments_list):
         options = create_processing_options(ice_args, False)
         result_map = {OPTIONS: options}
         return _handle_ice_parameters(result_map, ice_args)
+
+    elif len(arguments_list) > 2 and arguments_list[1].upper() == LOKI:
+        loki_parser = create_loki_parser(parent_parser)
+        loki_args = loki_parser.parse_args(arguments_list[2:])
+        options = create_processing_options(loki_args, False)
+        result_map = {OPTIONS: options}
+        return _handle_loki_parameters(result_map, loki_args)
 
     else:
         command_parser = create_command_parser(parent_parser)
@@ -211,6 +228,20 @@ def _handle_ice_parameters(result_map, args):
     result_map[CLI_TYPE] = ICE
     if args.command:
         result_map[FUNCTION] = args.command
+    log_requested_command(result_map)
+    return result_map
+
+
+def _handle_loki_parameters(result_map, args):
+    result_map[CLI_TYPE] = LOKI
+    if args.query:
+        result_map[QUERY] = args.query
+    if args.time:
+        result_map[TIME] = args.time
+    if args.start_datetime:
+        result_map[START_DATETIME] = args.start_datetime
+    if args.end_datetime:
+        result_map[END_DATETIME] = args.end_datetime
     log_requested_command(result_map)
     return result_map
 
